@@ -6,7 +6,8 @@ import terser from '@rollup/plugin-terser';
 
 const plugins = [
   nodeResolve(),
-  typescript(),
+  // picomatch 2.3.2 no longer matches rpt2's default `*.ts+(|x)` include pattern.
+  typescript({ include: ['*.ts', '**/*.ts'] }),
   json(),
   babel({
     babelHelpers: 'bundled',
