@@ -4,6 +4,9 @@ export const CARD_VERSION = 'v1.6.9';
 
 export const FORMAT_NUMBER = 'number';
 
+// With auto_submit, only the most recent digits are kept (the code is matched against the end of the input).
+export const AUTO_SUBMIT_MAX_INPUT = 20;
+
 export enum AlarmStates {
   Disarmed = 'disarmed',
   Arming = 'arming',
@@ -83,7 +86,8 @@ export const defaultCardConfig: CardConfig = {
   show_ready_indicator: true,
   show_bypassed_sensors: true,
   use_code_dialog: false,
-  hide_keypad: false
+  hide_keypad: false,
+  auto_submit: false,
 };
 
 export const minButtonScale = 1;

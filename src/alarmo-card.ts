@@ -5,6 +5,7 @@ import { STATE_NOT_RUNNING, UnsubscribeFunc } from 'home-assistant-js-websocket'
 import {
   CARD_VERSION,
   FORMAT_NUMBER,
+  AUTO_SUBMIT_MAX_INPUT,
   defaultCardConfig,
   ActionToState,
   ArmActions,
@@ -31,7 +32,7 @@ import {
   computeStateColor,
 } from './data/entity';
 import { validateConfig } from './data/config';
-import { fetchEntities, fetchConfig, fetchReadyToArmModes } from './data/websockets';
+import { fetchEntities, fetchConfig, fetchReadyToArmModes, fetchUsers } from './data/websockets';
 import { mdiDotsVertical } from '@mdi/js';
 import { CodeDialogParams } from './components/alarmo-code-dialog';
 import { HomeAssistant } from './lib/types';
@@ -75,6 +76,12 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
   subscribedEntities: string[] = [];
 
   _codeClearTimer = 0;
+
+  // Code lengths of the Alarmo users allowed to arm/disarm this area, used by auto_submit.
+  _codeLengths: { arm: number[]; disarm: number[] } = { arm: [], disarm: [] };
+
+  // Number of automatic attempts whose "invalid code" reply should be ignored.
+  _autoAttempts = 0;
 
   _last_command?: string;
   _last_code?: string;
@@ -142,6 +149,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       .then(res => {
         this._alarmoConfig = res;
         this.backendConnection = true;
+        this._loadCodeLengths();
       })
       .then(() => fetchReadyToArmModes(this.hass!, this._config!.entity))
       .then(res => {
@@ -152,16 +160,44 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       });
   }
 
+  private _loadCodeLengths() {
+    fetchUsers(this.hass!)
+      .then(users => {
+        const valid = Object.values(users).filter(
+          u =>
+            u.enabled &&
+            u.code_format === FORMAT_NUMBER &&
+            u.code_length > 0 &&
+            (!u.area_limit?.length || u.area_limit.map(String).includes(String(this.area_id)))
+        );
+        const lengths = (list: typeof valid) => [...new Set(list.map(u => u.code_length))].sort((a, b) => a - b);
+        this._codeLengths = {
+          arm: lengths(valid.filter(u => u.can_arm)),
+          disarm: lengths(valid.filter(u => u.can_disarm)),
+        };
+      })
+      .catch(() => {
+        this._codeLengths = { arm: [], disarm: [] };
+      });
+  }
+
   private async _fetchData(ev: AlarmoEvent): Promise<void> {
     if (ev.data.area_id !== this.area_id) return;
     switch (ev.data.event) {
       case AlarmoEvents.Arm:
         this._clearCode();
         break;
+      case AlarmoEvents.Disarm:
+        this._autoAttempts = 0;
+        break;
       case AlarmoEvents.Trigger:
         break;
       case AlarmoEvents.InvalidCodeProvided:
       case AlarmoEvents.NoCodeProvided:
+        if (this._autoAttempts > 0) {
+          this._autoAttempts--;
+          break;
+        }
         this._showCodeError();
         this.subscribedEntities = [];
         break;
@@ -316,6 +352,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
             this._clearCodeError();
             this._input = (ev.target as HTMLInputElement).value;
             this._setCodeClearTimer();
+            this._autoSubmit();
           }}
                 @focus=${this._clearCodeError}
                 type="password"
@@ -462,6 +499,29 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     const val = (e.currentTarget! as any).value;
     this._clearCodeError();
     this._input = val === 'clear' ? '' : this._input + val;
+    this._autoSubmit();
+  }
+
+  private _autoSubmit(): void {
+    const stateObj = this.hass!.states[this._config!.entity] as AlarmoEntity;
+    // Only disarming can be submitted automatically: when disarmed, the arm mode is not known yet.
+    if (
+      !this._config!.auto_submit ||
+      this._alarmoConfig?.code_format !== FORMAT_NUMBER ||
+      stateObj.state === AlarmStates.Disarmed ||
+      !codeRequired(stateObj)
+    )
+      return;
+    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...this._codeLengths.disarm));
+    // Try the last N digits for each user code length N, so the code is found anywhere in what was typed.
+    for (const length of this._codeLengths.disarm) {
+      if (this._input.length < length) break;
+      this._autoAttempts++;
+      this.hass!.callService('alarmo', 'disarm', {
+        entity_id: this._config!.entity,
+        code: this._input.slice(-length),
+      });
+    }
   }
 
   private async _handleActionClick(ev: Event, action: ArmActions): Promise<void> {
@@ -478,6 +538,11 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
           entity_id: this._config!.entity,
           action: action,
           armOptions: this.armOptions,
+          auto_submit_lengths: this._config!.auto_submit
+            ? action == ArmActions.Disarm
+              ? this._codeLengths.disarm
+              : this._codeLengths.arm
+            : [],
           cancel: () => {
             resolve(null);
           },
