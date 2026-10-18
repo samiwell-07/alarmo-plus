@@ -86,7 +86,6 @@ export const defaultCardConfig: CardConfig = {
   show_ready_indicator: true,
   show_bypassed_sensors: true,
   use_code_dialog: false,
-  hide_keypad: false,
   auto_submit: false,
   auto_submit_anywhere: false,
   large_keypad: false,

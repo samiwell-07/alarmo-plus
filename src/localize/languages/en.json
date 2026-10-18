@@ -12,7 +12,6 @@
     "show_ready_indicator": "Show ready/not ready indicator on arm mode buttons.",
     "show_bypassed_sensors": "Show warning message when alarm is armed with bypassed sensors.",
     "use_code_dialog": "Display the keypad for entering the code as a popup dialog.",
-    "hide_keypad": "Hide the keypad buttons for entering the code.",
     "auto_submit": "Submit the code automatically as soon as it is complete (a wrong code is ignored silently).",
     "auto_submit_anywhere": "Also accept the code when it appears anywhere in what is typed.",
     "large_keypad": "Large keypad: full-width keypad with tall keys.",

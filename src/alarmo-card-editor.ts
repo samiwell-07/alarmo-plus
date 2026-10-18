@@ -60,8 +60,7 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
       //legacy: button_scale was replaced by button_scale_keypad
       config = { ...config, button_scale_keypad: config?.button_scale };
 
-    // Plus fork: hide_keypad is removed.
-    this._config = { ...defaultCardConfig, ...config, hide_keypad: false };
+    this._config = { ...defaultCardConfig, ...config };
   }
 
   protected render(): TemplateResult {
@@ -276,7 +275,7 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             <ha-switch
               .checked=${this._config!.large_keypad}
               @change=${(ev: Event) => this._updateConfig('large_keypad', (ev.target as HTMLInputElement).checked)}
-              ?disabled=${!stateObj || !hasKeypad || this._config?.use_code_dialog || this._config?.hide_keypad}
+              ?disabled=${!stateObj || !hasKeypad || this._config?.use_code_dialog}
             ></ha-switch
           ></ha-formfield>
 
@@ -288,8 +287,7 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
               ?disabled=${!stateObj ||
       !hasKeypad ||
       this._alarmoConfig?.code_arm_required == this._alarmoConfig?.code_disarm_required ||
-      this._config?.use_code_dialog ||
-      this._config?.hide_keypad}
+      this._config?.use_code_dialog}
             ></ha-switch
           ></ha-formfield>
 

@@ -12,7 +12,6 @@
     "show_ready_indicator": "Afficher l'indicateur prêt/pas prêt sur les boutons de mode d'armement.",
     "show_bypassed_sensors": "Afficher un avertissement lorsque l'alarme est armée avec des capteurs ignorés.",
     "use_code_dialog": "Affichez le clavier pour saisir le code sous forme de boîte de dialogue contextuelle.",
-    "hide_keypad": "Masquer les boutons du clavier pour saisir le code.",
     "auto_submit": "Valider le code automatiquement dès qu'il est complet (un code erroné est ignoré sans message).",
     "auto_submit_anywhere": "Accepter aussi le code s'il se trouve n'importe où dans la saisie.",
     "large_keypad": "Grand clavier : clavier pleine largeur avec grandes touches.",

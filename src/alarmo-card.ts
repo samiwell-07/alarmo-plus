@@ -123,14 +123,13 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       config = { ...config, button_scale_keypad: config?.button_scale };
 
     validateConfig(config);
-    // Plus fork: scaling options, the ready indicator and hide_keypad are removed, so any saved value is ignored.
+    // Plus fork: scaling options and the ready indicator are removed, so any saved value is ignored.
     this._config = {
       ...defaultCardConfig,
       ...config,
       button_scale_actions: 1,
       button_scale_keypad: 1,
       show_ready_indicator: false,
-      hide_keypad: false,
     };
   }
 
@@ -372,8 +371,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
             `}
         ${(!codeRequired(stateObj) && !this._config.keep_keypad_visible) ||
         this._alarmoConfig?.code_format !== FORMAT_NUMBER ||
-        this._config.use_code_dialog ||
-        this._config.hide_keypad
+        this._config.use_code_dialog
         ? html``
         : html`
           <div id="keypad" class="keypad" style="max-width: ${this._config.large_keypad ? 'none' : `${this._config.button_scale_keypad * 300}px`}">
@@ -547,7 +545,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     this._clearCodeError();
     const stateObj = this.hass!.states[this._config!.entity] as AlarmoEntity;
 
-    if (this._config?.use_code_dialog && !this._config.hide_keypad && codeRequired(stateObj)) {
+    if (this._config?.use_code_dialog && codeRequired(stateObj)) {
       const res = await new Promise(resolve => {
         const element = ev.target as HTMLElement;
         const params: CodeDialogParams = {

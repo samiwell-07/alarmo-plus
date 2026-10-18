@@ -13,7 +13,6 @@ export type CardConfig = {
   show_ready_indicator: boolean;
   show_bypassed_sensors: boolean;
   use_code_dialog: boolean;
-  hide_keypad: boolean;
   auto_submit: boolean;
   auto_submit_anywhere: boolean;
   large_keypad: boolean;
