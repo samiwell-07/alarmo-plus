@@ -1,6 +1,6 @@
 {
-  "name": "Alarmo Card",
+  "name": "Alarmo Card Plus",
   "render_readme": true,
-  "filename": "alarmo-card.js",
+  "filename": "alarmo-card-plus.js",
   "homeassistant": "2026.5.0"
 }

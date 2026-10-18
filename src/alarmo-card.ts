@@ -123,7 +123,14 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       config = { ...config, button_scale_keypad: config?.button_scale };
 
     validateConfig(config);
-    this._config = { ...defaultCardConfig, ...config };
+    // Plus fork: scaling options and the ready indicator are removed, so any saved value is ignored.
+    this._config = {
+      ...defaultCardConfig,
+      ...config,
+      button_scale_actions: 1,
+      button_scale_keypad: 1,
+      show_ready_indicator: false,
+    };
   }
 
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {

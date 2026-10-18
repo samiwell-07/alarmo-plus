@@ -4,8 +4,6 @@ import { mdiArrowLeft, mdiCheckboxBlankOutline, mdiCheckboxMarked, mdiDragHorizo
 import { AlarmoEntity, CardConfig, StateConfig, AlarmoConfig } from './types';
 import { localize } from './localize/localize';
 import {
-  maxButtonScale,
-  minButtonScale,
   ActionToState,
   AlarmStates,
   ArmActions,
@@ -273,31 +271,6 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
         : ''}
 
         <div class="grid">
-          <ha-formfield .label=${localize('editor.button_scale_actions', this.hass.language)}>
-            <ha-slider
-              .value=${this._config!.button_scale_actions || 1}
-              @change=${(ev: Event) =>
-        this._updateConfig('button_scale_actions', Number((ev.target as HTMLInputElement).value))}
-              min="${minButtonScale}"
-              max="${maxButtonScale}"
-              step="0.1"
-              labeled
-            ></ha-slider>
-          </ha-formfield>
-
-          <ha-formfield .label=${localize('editor.button_scale_keypad', this.hass.language)}>
-            <ha-slider
-              .value=${this._config!.button_scale_keypad || 1}
-              @change=${(ev: Event) =>
-        this._updateConfig('button_scale_keypad', Number((ev.target as HTMLInputElement).value))}
-              min="${minButtonScale}"
-              max="${maxButtonScale}"
-              step="0.1"
-              labeled
-              ?disabled=${!stateObj || !hasKeypad || this._config?.use_code_dialog}
-            ></ha-slider>
-          </ha-formfield>
-
           <ha-formfield .label=${localize('editor.hide_keypad', this.hass.language)}>
             <ha-switch
               .checked=${this._config!.hide_keypad}
@@ -339,14 +312,6 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             <ha-switch
               .checked=${this._config!.show_messages || !isDefined(this._config!.show_messages)}
               @change=${(ev: Event) => this._updateConfig('show_messages', (ev.target as HTMLInputElement).checked)}
-            ></ha-switch
-          ></ha-formfield>
-
-          <ha-formfield .label=${localize('editor.show_ready_indicator', this.hass.language)}>
-            <ha-switch
-              .checked=${this._config!.show_ready_indicator}
-              @change=${(ev: Event) =>
-        this._updateConfig('show_ready_indicator', (ev.target as HTMLInputElement).checked)}
             ></ha-switch
           ></ha-formfield>
 
