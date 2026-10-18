@@ -252,7 +252,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     }
 
     return html`
-      <ha-card class="${this._config.large_keypad ? 'large-keypad' : ''}">
+      <ha-card class="${this._config.large_keypad ? 'large-keypad' : 'compact'}">
         ${stateObj.state === AlarmStates.Disarmed
         ? html`
               <ha-dropdown
@@ -374,6 +374,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         .hass=${this.hass}
         .config=${this._config}
         .readyForArmModes=${showReadyStatus ? this.readyForArmModes : undefined}
+        ?compact=${!this._config.large_keypad}
         style="--alarm-state-color: ${computeStateColor(stateObj, this._config, true)}; --content-scale: ${this._config!.button_scale_actions}"
       ></alarmo-actions-bar>
     `;
@@ -621,6 +622,19 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       .header .state {
         font-size: 14px;
         display: flex;
+      }
+      ha-card.compact .header {
+        justify-content: flex-start;
+        padding: 12px 0px;
+        gap: 12px;
+        margin: 0px 16px;
+      }
+      ha-card.compact .header .icon {
+        zoom: 0.6;
+      }
+      ha-card.compact .header .name {
+        font-size: 16px;
+        font-weight: 500;
       }
       .actions {
         margin: 0;
