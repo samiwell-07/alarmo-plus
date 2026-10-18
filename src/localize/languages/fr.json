@@ -1,17 +1,10 @@
 {
-  "arm_options": {
-    "heading": "Options pour l'armement",
-    "skip_delay": "Ignorer le délai de sortie",
-    "force": "Bypasser les capteurs ouverts"
-  },
   "editor": {
     "keep_keypad_visible": "Gardez le clavier toujours visible, même lorsqu'aucune saisie de code n'est requise.",
     "button_scale_actions": "Facteur d'échelle à appliquer pour le redimensionnement des boutons des actions.",
     "button_scale_keypad": "Facteur d'échelle à appliquer pour le redimensionnement des boutons du clavier.",
     "show_messages": "Afficher les messages de diagnostic lorsque l'alarme est déclenchée ou ne peut pas être armée.",
     "show_ready_indicator": "Afficher l'indicateur prêt/pas prêt sur les boutons de mode d'armement.",
-    "show_bypassed_sensors": "Afficher un avertissement lorsque l'alarme est armée avec des capteurs ignorés.",
-    "use_code_dialog": "Affichez le clavier pour saisir le code sous forme de boîte de dialogue contextuelle.",
     "auto_submit": "Valider le code automatiquement dès qu'il est complet (un code erroné est ignoré sans message).",
     "auto_submit_anywhere": "Accepter aussi le code s'il se trouve n'importe où dans la saisie.",
     "large_keypad": "Grand clavier : clavier pleine largeur avec grandes touches.",
@@ -35,8 +28,9 @@
   },
   "errors": {
     "invalid_pin": "Invalide",
+    "auto_submit_too_fast": "Saisie trop rapide pour vérifier chaque chiffre. Retapez le code.",
+    "auto_submit_unavailable": "Validation automatique indisponible : les longueurs de code n'ont pas pu être chargées.",
     "blocking_sensors": "Impossible d'armer en raison du(es) capteur(s) suivant(s)",
-    "triggered_sensors": "L'alarme a été déclenchée par le(s) capteur(s) suivant(s)",
-    "bypassed_sensors": "Il y a des capteurs ignorés"
+    "triggered_sensors": "L'alarme a été déclenchée par le(s) capteur(s) suivant(s)"
   }
 }

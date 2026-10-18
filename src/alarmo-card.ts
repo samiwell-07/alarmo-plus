@@ -12,15 +12,15 @@ import {
   AlarmoEvents,
   AlarmStates,
   EVENT,
-  defaultArmOptions,
+  CONFIG_UPDATED_EVENT,
 } from './const';
 import { CardConfig, AlarmoEvent, AlarmoEntity, AlarmoConfig } from './types';
+import { AutoSubmitQueue, autoSubmitCandidates, isAutoSubmitContext } from './auto-submit';
 
 import './alarmo-card-editor';
 import './components/alarmo-state-badge';
 import './components/alarmo-sensor-badge';
 import './components/alarmo-button';
-import './components/alarmo-code-dialog';
 import './components/alarmo-actions-bar';
 
 import { SubscribeMixin } from './subscribe-mixin';
@@ -33,11 +33,8 @@ import {
 } from './data/entity';
 import { validateConfig } from './data/config';
 import { fetchEntities, fetchConfig, fetchReadyToArmModes, fetchUsers } from './data/websockets';
-import { mdiDotsVertical } from '@mdi/js';
-import { CodeDialogParams } from './components/alarmo-code-dialog';
 import { HomeAssistant } from './lib/types';
 import { computeDomain } from './lib/compute-domain';
-import { fireEvent } from './lib/fire-event';
 
 const BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'clear'];
 const LARGE_BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'clear'];
@@ -64,29 +61,38 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
   private area_id: string | number | null | undefined = undefined;
 
   @state()
-  armOptions = { ...defaultArmOptions };
-
-  @state()
   readyForArmModes: AlarmStates[] | null = null;
 
   @state()
   backendConnection: boolean | null = null;
 
-  @state()
-  showBypassedSensors = false;
-
   subscribedEntities: string[] = [];
 
   _codeClearTimer = 0;
 
-  // Code lengths of the Alarmo users allowed to arm/disarm this area, used by auto_submit.
-  _codeLengths: { arm: number[]; disarm: number[] } = { arm: [], disarm: [] };
+  // Code lengths of the Alarmo users allowed to disarm this alarm, used by auto_submit.
+  _codeLengths: number[] = [];
 
-  // Number of automatic attempts whose "invalid code" reply should be ignored.
-  _autoAttempts = 0;
+  @state()
+  private _codeLengthsStatus: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
 
-  _last_command?: string;
-  _last_code?: string;
+  private _codeLengthsRequest = 0;
+
+  // Area ids of all Alarmo areas, needed to check user permissions for the master alarm.
+  private _areaIds: string[] = [];
+
+  private _autoQueue = new AutoSubmitQueue(
+    (code, contextId) =>
+      this.hass!.callService('alarmo', 'disarm', {
+        entity_id: this._config!.entity,
+        code: code,
+        context_id: contextId,
+      }),
+    () => {
+      this._input = '';
+      this._showCodeError(localize('errors.auto_submit_too_fast', this.hass!.language));
+    }
+  );
 
   public static async getConfigElement() {
     await import('./alarmo-card-editor');
@@ -111,7 +117,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     if (!this._config || !this.hass) return 9;
     const stateObj = this.hass.states[this._config.entity] as AlarmoEntity;
     if (!stateObj || this._alarmoConfig?.code_format !== FORMAT_NUMBER) return 4;
-    return (!codeRequired(stateObj) && !this._config.keep_keypad_visible || this._config.use_code_dialog) ? 4 : this._config.large_keypad ? 11 : 9;
+    return !codeRequired(stateObj) && !this._config.keep_keypad_visible ? 4 : this._config.large_keypad ? 11 : 9;
   }
 
   public setConfig(config?: CardConfig & { button_scale?: any }): void {
@@ -123,7 +129,9 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       config = { ...config, button_scale_keypad: config?.button_scale };
 
     validateConfig(config);
-    // Plus fork: scaling options and the ready indicator are removed, so any saved value is ignored.
+    const previous = this._config;
+    // Plus fork: scaling options, the ready indicator, the code dialog and the bypassed sensors warning are removed,
+    // so any saved value is ignored.
     this._config = {
       ...defaultCardConfig,
       ...config,
@@ -131,11 +139,28 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       button_scale_keypad: 1,
       show_ready_indicator: false,
     };
+
+    if (previous && this.hass) {
+      if (previous.entity !== this._config.entity) {
+        this._autoQueue.cancel();
+        this.backendConnection = null;
+        this.loadBackendConfig();
+      } else if (previous.auto_submit !== this._config.auto_submit) {
+        this._loadCodeLengths();
+      }
+    }
   }
 
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
+    const onReconnect = () => this._loadCodeLengths();
+    this.hass!.connection.addEventListener('ready', onReconnect);
     return [
       this.hass!.connection.subscribeMessage(ev => this._fetchData((ev as unknown) as AlarmoEvent), { type: EVENT }),
+      // Fired by Alarmo when its configuration (including users and codes) changes.
+      this.hass!.connection
+        .subscribeMessage(() => this._loadCodeLengths(), { type: CONFIG_UPDATED_EVENT })
+        .catch(() => () => undefined),
+      Promise.resolve(() => this.hass?.connection.removeEventListener('ready', onReconnect)),
     ];
   }
 
@@ -153,6 +178,8 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       .then(res => {
         const match = res.find(e => e.entity_id == this._config!.entity);
         if (match) this.area_id = match.area_id ? match.area_id : null;
+        // The master alarm is listed with area_id 0.
+        this._areaIds = res.filter(e => e.area_id).map(e => String(e.area_id));
       })
       .then(() => fetchConfig(this.hass!))
       .then(res => {
@@ -170,23 +197,35 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
   }
 
   private _loadCodeLengths() {
-    fetchUsers(this.hass!)
+    const request = ++this._codeLengthsRequest;
+    // User records are only requested when they are needed.
+    if (!this.hass || !this._config?.auto_submit || !this.backendConnection) {
+      this._codeLengths = [];
+      this._codeLengthsStatus = 'idle';
+      return;
+    }
+    this._codeLengthsStatus = 'loading';
+    fetchUsers(this.hass)
       .then(users => {
+        if (request !== this._codeLengthsRequest) return;
+        // Same rules as Alarmo: a user limited to some areas must be allowed in every area the alarm controls.
+        const targetAreas = this.area_id ? [String(this.area_id)] : this._areaIds;
         const valid = Object.values(users).filter(
           u =>
             u.enabled &&
+            u.can_disarm &&
             u.code_format === FORMAT_NUMBER &&
             u.code_length > 0 &&
-            (!u.area_limit?.length || u.area_limit.map(String).includes(String(this.area_id)))
+            (!u.area_limit?.length || targetAreas.every(area => u.area_limit.map(String).includes(area)))
         );
-        const lengths = (list: typeof valid) => [...new Set(list.map(u => u.code_length))].sort((a, b) => a - b);
-        this._codeLengths = {
-          arm: lengths(valid.filter(u => u.can_arm)),
-          disarm: lengths(valid.filter(u => u.can_disarm)),
-        };
+        // Only the lengths are kept.
+        this._codeLengths = [...new Set(valid.map(u => u.code_length))].sort((a, b) => a - b);
+        this._codeLengthsStatus = 'ready';
       })
       .catch(() => {
-        this._codeLengths = { arm: [], disarm: [] };
+        if (request !== this._codeLengthsRequest) return;
+        this._codeLengths = [];
+        this._codeLengthsStatus = 'failed';
       });
   }
 
@@ -197,23 +236,19 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         this._clearCode();
         break;
       case AlarmoEvents.Disarm:
-        this._autoAttempts = 0;
+        this._autoQueue.cancel();
         break;
       case AlarmoEvents.Trigger:
         break;
       case AlarmoEvents.InvalidCodeProvided:
       case AlarmoEvents.NoCodeProvided:
-        if (this._autoAttempts > 0) {
-          this._autoAttempts--;
-          break;
-        }
+        // Failed automatic attempts (from any Plus card) stay silent.
+        if (isAutoSubmitContext(ev.data.context_id)) break;
         this._showCodeError();
         this.subscribedEntities = [];
         break;
       case AlarmoEvents.FailedToArm:
         this.warning = 'blocking_sensors';
-        this._last_command = ev.data.command;
-        this._last_code = this._input;
         this._clearCode();
         break;
       case AlarmoEvents.CommandNotAllowed:
@@ -296,35 +331,6 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
 
     return html`
       <ha-card class="${this._config.large_keypad ? 'large-keypad' : 'compact'}">
-        ${stateObj.state === AlarmStates.Disarmed
-        ? html`
-              <ha-dropdown
-                placement="bottom-end"
-                id="cornerMenu"
-              >
-                <ha-icon-button slot="trigger" .label=${this.hass.localize('ui.common.menu')} .path=${mdiDotsVertical}>
-                </ha-icon-button>
-                <span class="title">
-                  ${localize('arm_options.heading', this.hass.language)}
-                </span>
-                <ha-dropdown-item @click=${(ev: Event) => this._toggleArmOptions(ev, 'skip_delay')}>
-                  <ha-icon
-                    icon="mdi:check"
-                    style="${this.armOptions.skip_delay ? '' : 'visibility: hidden'}"
-                  ></ha-icon>
-                  ${localize('arm_options.skip_delay', this.hass.language)}
-                </ha-dropdown-item>
-                <ha-dropdown-item @click=${(ev: Event) => this._toggleArmOptions(ev, 'force')}>
-                  <ha-icon
-                    icon="mdi:check"
-                    style="${this.armOptions.force ? '' : 'visibility: hidden'}"
-                  ></ha-icon>
-                  ${localize('arm_options.force', this.hass.language)}
-                </ha-dropdown-item>
-              </ha-dropdown>
-            `
-        : ''}
-
         <div class="header">
           <div class="icon">
             <alarmo-state-badge
@@ -350,7 +356,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
           ${this._renderActions()}
         </div>
 
-        ${(!codeRequired(stateObj) && !this._config.keep_keypad_visible) || this._config.use_code_dialog
+        ${!codeRequired(stateObj) && !this._config.keep_keypad_visible
         ? html``
         : html`
               <ha-input
@@ -369,9 +375,18 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
                 .inputmode=${this._alarmoConfig?.code_format === FORMAT_NUMBER ? 'numeric' : 'text'}
               ></ha-input>
             `}
+        ${this._config.auto_submit && this._codeLengthsStatus === 'failed' && codeRequired(stateObj)
+        ? html`
+              <div class="auto-submit-failed">
+                <span>${localize('errors.auto_submit_unavailable', this.hass.language)}</span>
+                <button type="button" @click=${() => this._loadCodeLengths()}>
+                  ${this.hass.localize('ui.common.retry') || 'Retry'}
+                </button>
+              </div>
+            `
+        : ''}
         ${(!codeRequired(stateObj) && !this._config.keep_keypad_visible) ||
-        this._alarmoConfig?.code_format !== FORMAT_NUMBER ||
-        this._config.use_code_dialog
+        this._alarmoConfig?.code_format !== FORMAT_NUMBER
         ? html``
         : html`
           <div id="keypad" class="keypad" style="max-width: ${this._config.large_keypad ? 'none' : `${this._config.button_scale_keypad * 300}px`}">
@@ -454,48 +469,6 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
                 `;
           })}
             </div>
-          ${this.warning == 'blocking_sensors' && stateObj.attributes.open_sensors
-          ? html`
-            <alarmo-button
-              @click=${this._forceRetryClick}
-              style="--content-scale: ${this._config!.button_scale_actions}"
-              ?scaled=${this._config!.button_scale_actions != 1}
-            >
-              <span>${localize('arm_options.force', this.hass.language)}</span>
-            </alarmo-button>
-          ` : ''}
-          </div>
-          <div class="messagebox-right"></div>
-        </div>
-      `;
-    }
-    if (
-      stateObj.state.startsWith('armed_') &&
-      stateObj.attributes.bypassed_sensors?.length &&
-      this._config.show_bypassed_sensors
-    ) {
-      return html`
-        <div class="messagebox warning">
-          <div class="messagebox-left"></div>
-          <div class="messagebox-inner">
-            <div class="description">
-              <div class="description-filler"></div>
-              <span>
-                <ha-icon icon="hass:alert"></ha-icon>
-                ${localize('errors.bypassed_sensors', this.hass.language)}
-              </span>
-              <div class="description-filler"></div>
-            </div>
-            <div class="content">
-              ${stateObj.attributes.bypassed_sensors.map(e => {
-        if (!this.subscribedEntities.includes(e)) this.subscribedEntities.push(e);
-        return html`
-                  <div class="badge">
-                    <alarmo-sensor-badge .hass=${this.hass} .entity=${e}> </alarmo-sensor-badge>
-                  </div>
-                `;
-      })}
-            </div>
           </div>
           <div class="messagebox-right"></div>
         </div>
@@ -512,6 +485,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       setTimeout(() => button.classList.remove('lit'), KEY_HIGHLIGHT_MS);
     }
     this._clearCodeError();
+    if (val === 'clear') this._autoQueue.cancel();
     this._input = val === 'clear' ? '' : this._input + val;
     this._autoSubmit();
   }
@@ -521,89 +495,42 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     // Only disarming can be submitted automatically: when disarmed, the arm mode is not known yet.
     if (
       !this._config!.auto_submit ||
+      this._codeLengthsStatus !== 'ready' ||
       this._alarmoConfig?.code_format !== FORMAT_NUMBER ||
       stateObj.state === AlarmStates.Disarmed ||
       !codeRequired(stateObj)
     )
       return;
-    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...this._codeLengths.disarm));
+    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...this._codeLengths));
     // For each user code length N, try the input (or with auto_submit_anywhere its last N digits, so the code
-    // is found anywhere in what was typed). A wrong code is silent, so the code length is not revealed.
-    for (const length of this._codeLengths.disarm) {
-      if (this._input.length < length) break;
-      if (!this._config!.auto_submit_anywhere && this._input.length !== length) continue;
-      this._autoAttempts++;
-      this.hass!.callService('alarmo', 'disarm', {
-        entity_id: this._config!.entity,
-        code: this._input.slice(-length),
-      });
-    }
+    // is found anywhere in what was typed). Attempts are sent one at a time.
+    this._autoQueue.add(autoSubmitCandidates(this._input, this._codeLengths, this._config!.auto_submit_anywhere));
   }
 
-  private async _handleActionClick(ev: Event, action: ArmActions): Promise<void> {
+  private _handleActionClick(ev: Event, action: ArmActions): void {
     (ev.target as HTMLElement).blur();
     this._clearCodeError();
-    const stateObj = this.hass!.states[this._config!.entity] as AlarmoEntity;
-
-    if (this._config?.use_code_dialog && codeRequired(stateObj)) {
-      const res = await new Promise(resolve => {
-        const element = ev.target as HTMLElement;
-        const params: CodeDialogParams = {
-          code_format: this._alarmoConfig!.code_format,
-          area_id: this.area_id,
-          entity_id: this._config!.entity,
-          action: action,
-          armOptions: this.armOptions,
-          auto_submit_lengths: this._config!.auto_submit
-            ? action == ArmActions.Disarm
-              ? this._codeLengths.disarm
-              : this._codeLengths.arm
-            : [],
-          auto_submit_anywhere: this._config!.auto_submit_anywhere,
-          cancel: () => {
-            resolve(null);
-          },
-          confirm: (ev: AlarmoEvents) => {
-            resolve(ev);
-          },
-        };
-        fireEvent(element, 'show-dialog', {
-          dialogTag: 'alarmo-code-dialog',
-          dialogImport: () => import('./components/alarmo-code-dialog'),
-          dialogParams: params
-        });
+    if (action == ArmActions.Disarm) {
+      this.hass!.callService('alarmo', 'disarm', {
+        entity_id: this._config!.entity,
+        code: this._input,
       });
-      if (res == AlarmoEvents.Arm || res == AlarmoEvents.Disarm) {
-        //(dis)arming successful
-        this.warning = '';
-        this.armOptions = { ...defaultArmOptions };
-      }
+    } else {
+      this.hass!.callService('alarmo', 'arm', {
+        entity_id: this._config!.entity,
+        mode: ActionToState[action],
+        code: this._input,
+      });
     }
-    else {
-      if (action == ArmActions.Disarm) {
-        this.hass!.callService('alarmo', 'disarm', {
-          entity_id: this._config!.entity,
-          code: this._input,
-        });
-      } else {
-        this.hass!.callService('alarmo', 'arm', {
-          ...this.armOptions,
-          entity_id: this._config!.entity,
-          mode: ActionToState[action],
-          code: this._input,
-        });
-      }
-      this.warning = '';
-      this.armOptions = { ...defaultArmOptions };
-    }
+    this.warning = '';
   }
 
-  private _showCodeError() {
+  private _showCodeError(message = localize('errors.invalid_pin', this.hass!.language)) {
     const inputField = this.shadowRoot?.querySelector('#code_input');
     if (inputField) {
       inputField.classList.remove('error');
       inputField.classList.add('error');
-      (inputField as any).hint = localize('errors.invalid_pin', this.hass!.language);
+      (inputField as any).hint = message;
     }
   }
 
@@ -619,6 +546,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
 
   private _clearCode() {
     this._input = '';
+    this._autoQueue.cancel();
     this._clearCodeError();
     this._cancelCodeClearTimer();
   }
@@ -636,31 +564,6 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     if (this._codeClearTimer) {
       clearTimeout(this._codeClearTimer);
     }
-  }
-
-  private _toggleArmOptions(ev: Event, option: 'skip_delay' | 'force') {
-    ev.stopImmediatePropagation();
-    (ev.target as HTMLInputElement).blur();
-    if (option == 'skip_delay') {
-      this.armOptions = { ...this.armOptions, skip_delay: !this.armOptions.skip_delay };
-    }
-    else if (option == 'force') {
-      this.armOptions = { ...this.armOptions, force: !this.armOptions.force };
-    }
-  }
-
-  private _forceRetryClick() {
-    if (!this.hass || !this._config || !this._last_command) return;
-    let action = this._last_command;
-
-    this.hass!.callService('alarmo', 'arm', {
-      entity_id: this._config!.entity,
-      mode: ActionToState[action],
-      code: this._last_code,
-      force: true,
-    });
-    this._last_command = undefined;
-    this._last_code = undefined;
   }
 
   static get styles(): CSSResult {
@@ -867,33 +770,29 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         color: var(--primary-text-color);
       }
       div.messagebox .content .badge {
-        width: 64px;
+        width: 140px;
         margin: 5px 0px;
         justify-content: center;
         align-items: center;
+        --ha-label-badge-title-width: 140px;
       }
-      div.messagebox alarmo-button {
+      div.auto-submit-failed {
         display: flex;
-        justify-self: center;
-        margin-bottom: 10px;
-      }
-      ha-dropdown {
-        display: block;
-        position: absolute;
-        right: 4px;
-        top: 4px;
-      }
-      ha-dropdown span.title {
-        font-weight: bold;
-        display: flex;
-        height: 32px;
         align-items: center;
-        padding: 0px 8px;
+        justify-content: center;
+        gap: 8px;
+        margin: 0px 16px 8px;
+        font-size: 14px;
+        color: var(--error-color);
       }
-      @media all and (max-width: 250px) {
-        ha-dropdown {
-          display: none;
-        }
+      div.auto-submit-failed button {
+        background: none;
+        border: none;
+        padding: 4px 8px;
+        font: inherit;
+        font-weight: 500;
+        color: var(--primary-color);
+        cursor: pointer;
       }
     `;
   }

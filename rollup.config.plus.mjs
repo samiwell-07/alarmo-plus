@@ -6,7 +6,7 @@ import config from './rollup.config.mjs';
 const suffix = process.env.CARD_SUFFIX || 'plus';
 const label = suffix === 'plus' ? 'Plus' : `Plus (${suffix})`;
 
-const ELEMENTS = /(?<![\w-])alarmo-(card-editor|card|button|state-badge|sensor-badge|code-dialog|actions-bar)(?![\w-])/g;
+const ELEMENTS = /(?<![\w-])alarmo-(card-editor|card|button|state-badge|sensor-badge|actions-bar)(?![\w-])/g;
 
 const renameElements = {
   name: 'rename-elements',

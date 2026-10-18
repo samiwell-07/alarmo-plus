@@ -2,7 +2,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)  
 
 > **Alarmo Card Plus** — personal fork of [nielsfaber/alarmo-card](https://github.com/nielsfaber/alarmo-card) that can be installed next to the official card.
-> Use `type: custom:alarmo-card-plus`. Extra options: `large_keypad` (off = compact header), `auto_submit`, `auto_submit_anywhere`; the `button_scale_*`, `show_ready_indicator` and `hide_keypad` options are removed (see [Options](#options)).
+> Use `type: custom:alarmo-card-plus`. Extra options: `large_keypad` (off = compact header), `auto_submit`, `auto_submit_anywhere`; the `button_scale_*`, `show_ready_indicator`, `hide_keypad`, `use_code_dialog` and `show_bypassed_sensors` options, the arming options menu and the "Bypass open sensors" button are removed (see [Options](#options)).
 > Build with `npm run build:plus` (outputs `dist/alarmo-card-plus.js`); `npm run dev` serves a live-rebuilt `alarmo-card-dev` for testing.
 
 
@@ -11,12 +11,12 @@
   - [Features](#features)
     - [Countdown timer](#countdown-timer)
     - [Diagnostics messages](#diagnostics-messages)
-    - [Arming options](#arming-options)
     - [Card customization](#card-customization)
   - [Installation](#installation)
   - [Updating](#updating)
   - [Configuration](#configuration)
   - [Options](#options)
+    - [Auto-submit limitations](#auto-submit-limitations)
     - [State configuration](#state-configuration)
   - [Say thank you](#say-thank-you)
 
@@ -50,13 +50,6 @@ The card will give you an indication in the following conditions:
 In the second and third case you will see a message in the card with the sensors that caused the issue.
 The state of these sensors is visible in the message, such that you have feedback in case the issue is resolved.
 
-### Arming options
-When the alarm is disabled, an icon is shown in the top-right corner of the card. By clicking it a menu is revealed with the advanced arming options:
-* *Skip delay*: setting this option will cause the exit delay to be skipped, so arming the alarm will be effective immediately. This is practical in case you want to arm the alarm after you already left the house.
-* *Bypass open sensors*: this option forces the alarm to be armed. In case sensors are blocking the arming, they will be automatically bypassed (temporarily eliminated from the alarm). 
-
-The arming options are only applied on the next time you arm the alarm.
-
 ### Card customization
 The card allows the following customization options:
 * Increasing the size of the buttons in the card.
@@ -72,22 +65,25 @@ The card allows the following customization options:
 HACS installation:
 
 Note: Ensure you have a www folder created as in config/www or the installation will succeed but fails silently
-1. Click the Orange + button bottom right and search for Alarmo Card
-2. Click on "Install" under the new card that just popped up.
+1. In HACS, open the menu (three dots, top right) and choose "Custom repositories".
+2. Add `https://github.com/samiwell-07/alarmo-plus` with type "Dashboard".
+3. Search for "Alarmo Card Plus" and click "Download".
 
 Note: Ensure to install [`https://github.com/nielsfaber/alarmo`](https://github.com/nielsfaber/alarmo) and add the integration in order for the card to work properly. 
 
 Manual installation
 
-1. Download the latest release of `alarmo-card.js` [here](https://github.com/nielsfaber/alarmo-card/releases) and place it into `www/alarmo-card`.
+1. Download `alarmo-card-plus.js` from the latest release [here](https://github.com/samiwell-07/alarmo-plus/releases) and place it into `www/alarmo-card-plus`.
 
-2. Use the GUI; Configuration -> Lovelace Dashboards -> Resources Tab to add `/local/alarmo-card/alarmo-card.js?v=0`, or add a reference to the card in the resources section of `configuration.yaml`:
+2. Use the GUI; Configuration -> Lovelace Dashboards -> Resources Tab to add `/local/alarmo-card-plus/alarmo-card-plus.js?v=0`, or add a reference to the card in the resources section of `configuration.yaml`:
 
 ```yaml
 resources:
-  - url: /local/alarmo-card/alarmo-card.js?v=0
+  - url: /local/alarmo-card-plus/alarmo-card-plus.js?v=0
     type: module
 ```
+
+Development builds (`npm run dev`) are served separately as `alarmo-card-dev` and are only meant for testing.
 </details>
 
 ## Updating
@@ -100,7 +96,7 @@ HACS should auto-remind you in the HACS tab when an update is available.
 
 Updating manually:
 
-Use `git pull` for manual installation updates.
+Download the new `alarmo-card-plus.js` from the [releases](https://github.com/samiwell-07/alarmo-plus/releases) and replace the old file.
 
 Since most browsers will cache the Lovelace card code, you can force a refresh of  the browser by editing the entry in the `resources:` section in  `ui-lovelace.yaml`, by updating the version to `?v=(n+1)` (where `n` the current value).
 
@@ -117,7 +113,7 @@ All settings regarding delay times, arming modes, code settings are automaticall
 
 Example YAML configuration:
 ```yaml
-type: 'custom:alarmo-card'
+type: 'custom:alarmo-card-plus'
 entity: alarm_control_panel.alarmo
 ```
 
@@ -125,22 +121,26 @@ Configuration using UI mode:
 1. Go to the Lovelace page where you want to add the card
 2. Click "Edit Dashboard" on the right (under the button with the 3 dots)
 * Click the "Add card" button on the bottom
-* Choose "Custom: Alarmo Card" and pick the correct entity.
+* Choose "Custom: Alarmo Card Plus" and pick the correct entity.
 
 ## Options
 | Name                    | Type    | Requirement  | Description                                                                                                                                                                     | Default            |
 | ----------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `type`                  | string  | **Required** | `custom:alarmo-card`                                                                                                                                                            |                    |
+| `type`                  | string  | **Required** | `custom:alarmo-card-plus`                                                                                                                                                       |                    |
 | `entity`                | string  | **Required** | Alarm_control_panel entity                                                                                                                                                      |                    |
 | `name`                  | string  | Optional     | Displayed name (next to icon)                                                                                                                                                   | (Take from entity) |
 | `keep_keypad_visible`   | boolean | Optional     | Keep the keypad always visible, also when no code input is required.<br>Only useful if numerical code is used.                                                                  | `false`            |
-| `use_code_dialog`       | boolean | Optional     | Display the keypad for entering the code as a popup dialog.<br>This option cannot be combined with the settings `keep_keypad_visible`. | `false`            |
-| `auto_submit`           | boolean | Optional     | Submit a numeric code automatically as soon as the typed digits have the length of an Alarmo user code (lengths are read from Alarmo). A wrong code is ignored silently, so the code length is not revealed; use the clear button to start over.<br>On the card this disarms the alarm; in the code dialog (`use_code_dialog`) it also arms.<br>Note: every attempt is logged by Alarmo. | `false`            |
+| `auto_submit`           | boolean | Optional     | Submit a numeric code automatically as soon as the typed digits have the length of an Alarmo user code (lengths are read from Alarmo and refreshed when Alarmo users change). Attempts are sent one at a time; if you type faster than Alarmo can check them, the input is cleared and you are asked to type the code again. Failed attempts are not shown on Plus cards; use the clear button to start over.<br>This only disarms the alarm.<br>See [Auto-submit limitations](#auto-submit-limitations). | `false`            |
 | `auto_submit_anywhere`  | boolean | Optional     | With `auto_submit`, also try the last digits after every key, so the code is accepted wherever it appears in what is typed (e.g. code `3434` in `434523434…`). | `false`            |
 | `large_keypad`          | boolean | Optional     | Full-width keypad with tall keys, a clear button on both sides of `0` and a highlight on key press. When off, the card uses a compact header (small state icon on the left, icon-only action buttons). | `false`            |
 | `show_messages`         | boolean | Optional     | Show diagnostic messages in the card when alarm is triggered or cannot be armed.                                                                                                | `true`             |
-| `show_bypassed_sensors` | boolean | Optional     | Show a warning message when the alarm is armed with bypassed sensors.                                                                                                           | `true`             |
 | `states`                | object  | Optional     | Customize the display of states in the card.<br>See [state configuration](#state-configuration).                                                                                |                    |
+
+### Auto-submit limitations
+`auto_submit` only uses what the current Alarmo integration offers, so:
+* To learn the code lengths, the card requests Alarmo's user list (only while `auto_submit` is on). Alarmo sends complete user records, including the hashed codes, to the browser; the card keeps only the lengths. Avoiding this needs an Alarmo endpoint that returns only the code lengths.
+* Failed automatic attempts are hidden on every Alarmo Card Plus, but other cards for the same alarm (such as the original alarmo-card) still show them as "Invalid". So the code length is not hidden from those cards.
+* Every attempt is checked and logged by Alarmo. The card sends one attempt at a time, but Alarmo itself has no rate limit.
 
 ### State configuration 
 State configuration allows users to modify the displayed texts and buttons (where applicable) in the card corresponding to certain states.

@@ -1,6 +1,6 @@
 import { CardConfig } from './types';
 
-export const CARD_VERSION = 'v1.6.9-plus.3';
+export const CARD_VERSION = 'v1.6.9-plus.4';
 
 export const FORMAT_NUMBER = 'number';
 
@@ -72,6 +72,9 @@ export enum AlarmoEvents {
 
 export const EVENT = 'alarmo_updated';
 
+// Alarmo sends this when its configuration changes (e.g. a user or code was edited).
+export const CONFIG_UPDATED_EVENT = 'alarmo_config_updated';
+
 export const PENDING_STATES = ['arming', 'pending'];
 
 export const defaultCardConfig: CardConfig = {
@@ -84,8 +87,6 @@ export const defaultCardConfig: CardConfig = {
   states: {},
   show_messages: true,
   show_ready_indicator: true,
-  show_bypassed_sensors: true,
-  use_code_dialog: false,
   auto_submit: false,
   auto_submit_anywhere: false,
   large_keypad: false,
@@ -93,11 +94,6 @@ export const defaultCardConfig: CardConfig = {
 
 export const minButtonScale = 1;
 export const maxButtonScale = 2.5;
-
-export const defaultArmOptions = {
-  skip_delay: false,
-  force: false,
-};
 
 export enum ColorOptions {
   Red = 'red',

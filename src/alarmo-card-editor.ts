@@ -275,7 +275,7 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             <ha-switch
               .checked=${this._config!.large_keypad}
               @change=${(ev: Event) => this._updateConfig('large_keypad', (ev.target as HTMLInputElement).checked)}
-              ?disabled=${!stateObj || !hasKeypad || this._config?.use_code_dialog}
+              ?disabled=${!stateObj || !hasKeypad}
             ></ha-switch
           ></ha-formfield>
 
@@ -286,16 +286,7 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
         this._updateConfig('keep_keypad_visible', (ev.target as HTMLInputElement).checked)}
               ?disabled=${!stateObj ||
       !hasKeypad ||
-      this._alarmoConfig?.code_arm_required == this._alarmoConfig?.code_disarm_required ||
-      this._config?.use_code_dialog}
-            ></ha-switch
-          ></ha-formfield>
-
-          <ha-formfield .label=${localize('editor.use_code_dialog', this.hass.language)}>
-            <ha-switch
-              .checked=${this._config!.use_code_dialog}
-              @change=${(ev: Event) => this._updateConfig('use_code_dialog', (ev.target as HTMLInputElement).checked)}
-              ?disabled=${!stateObj || (!this._alarmoConfig?.code_arm_required && !this._alarmoConfig?.code_disarm_required)}
+      this._alarmoConfig?.code_arm_required == this._alarmoConfig?.code_disarm_required}
             ></ha-switch
           ></ha-formfield>
 
@@ -303,14 +294,6 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             <ha-switch
               .checked=${this._config!.show_messages || !isDefined(this._config!.show_messages)}
               @change=${(ev: Event) => this._updateConfig('show_messages', (ev.target as HTMLInputElement).checked)}
-            ></ha-switch
-          ></ha-formfield>
-
-          <ha-formfield .label=${localize('editor.show_bypassed_sensors', this.hass.language)}>
-            <ha-switch
-              .checked=${this._config!.show_bypassed_sensors}
-              @change=${(ev: Event) =>
-        this._updateConfig('show_bypassed_sensors', (ev.target as HTMLInputElement).checked)}
             ></ha-switch
           ></ha-formfield>
 

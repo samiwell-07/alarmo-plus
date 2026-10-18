@@ -1,17 +1,10 @@
 {
-  "arm_options": {
-    "heading": "Options for arming",
-    "skip_delay": "Skip exit delay",
-    "force": "Bypass open sensors"
-  },
   "editor": {
     "keep_keypad_visible": "Keep the keypad always visible, also when no code input is required.",
     "button_scale_actions": "Scaling factor to apply for resizing the action buttons.",
     "button_scale_keypad": "Scaling factor to apply for resizing the keypad buttons.",
     "show_messages": "Display diagnostic messages when alarm is triggered or cannot be armed.",
     "show_ready_indicator": "Show ready/not ready indicator on arm mode buttons.",
-    "show_bypassed_sensors": "Show warning message when alarm is armed with bypassed sensors.",
-    "use_code_dialog": "Display the keypad for entering the code as a popup dialog.",
     "auto_submit": "Submit the code automatically as soon as it is complete (a wrong code is ignored silently).",
     "auto_submit_anywhere": "Also accept the code when it appears anywhere in what is typed.",
     "large_keypad": "Large keypad: full-width keypad with tall keys.",
@@ -35,8 +28,9 @@
   },
   "errors": {
     "invalid_pin": "Invalid",
+    "auto_submit_too_fast": "Typed too fast to check every digit. Type the code again.",
+    "auto_submit_unavailable": "Auto-submit is unavailable: the code lengths could not be loaded.",
     "blocking_sensors": "Could not arm due to the following sensors",
-    "triggered_sensors": "Alarm was triggered by the following sensors",
-    "bypassed_sensors": "There are bypassed sensors"
+    "triggered_sensors": "Alarm was triggered by the following sensors"
   }
 }

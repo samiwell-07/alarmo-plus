@@ -74,9 +74,24 @@ export class AlarmoActionsBar extends LitElement {
     return options.map(e => {
       const isDisabled = isDefined(this.readyForArmModes) && !this.readyForArmModes.includes(ActionToState[e]) && e != ArmActions.Disarm;
       const stateConfig = calcStateConfig(ActionToState[e], this.config!);
+      const defaultLabel = e == ArmActions.Disarm && stateObj.state !== AlarmStates.Disarmed
+        ? this.hass!.localize(`ui.card.alarm_control_panel.${e}`)
+        : this.hass!.localize(`ui.card.alarm_control_panel.modes.${ActionToState[e]}`);
+      const label = isDefined(stateConfig.button_label) ? stateConfig.button_label : defaultLabel;
 
       return html`
-        <div class="button ${ActionToState[e] == selectedOption ? 'selected' : ''}" @click=${(ev: Event) => this._handleClick(ev, e)}>
+        <div
+          class="button ${ActionToState[e] == selectedOption ? 'selected' : ''}"
+          role="button"
+          tabindex="0"
+          aria-label=${label || defaultLabel}
+          @click=${(ev: Event) => this._handleClick(ev, e)}
+          @keydown=${(ev: KeyboardEvent) => {
+          if (ev.key !== 'Enter' && ev.key !== ' ') return;
+          ev.preventDefault();
+          this._handleClick(ev, e);
+        }}
+        >
           <div class="content ${hasTextLabel ? 'has-text' : ''}">
             <ha-icon icon="${isEmpty(stateConfig.button_icon) ? ActionToIcon[e] : stateConfig.button_icon}"></ha-icon>
             ${ActionToState[e] != selectedOption && isDefined(this.readyForArmModes)
@@ -86,14 +101,7 @@ export class AlarmoActionsBar extends LitElement {
                 class="badge ${isDisabled ? 'error' : 'success'}"
               ></ha-icon>
             ` : nothing}
-            <span>
-              ${!isDefined(stateConfig.button_label)
-          ? e == ArmActions.Disarm && stateObj.state !== AlarmStates.Disarmed
-            ? this.hass!.localize(`ui.card.alarm_control_panel.${e}`)
-            : this.hass!.localize(`ui.card.alarm_control_panel.modes.${ActionToState[e]}`)
-          : stateConfig.button_label
-        }
-            </span>
+            <span aria-hidden="true">${label}</span>
           </div>
         </div>
       `;
@@ -132,6 +140,11 @@ export class AlarmoActionsBar extends LitElement {
         background: var(--primary-text-color);
         opacity: 0.05;
         border-radius: calc(var(--content-scale, 1) * 18px);
+      }
+      div.button:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: -2px;
+        border-radius: 8px;
       }
       div.button {
         cursor: pointer;
