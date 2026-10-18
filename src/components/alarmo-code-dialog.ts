@@ -3,7 +3,7 @@ import { css, html, LitElement, nothing, PropertyValues, TemplateResult } from "
 import { customElement, property, query, state } from "lit/decorators.js";
 import { UnsubscribeFunc } from "home-assistant-js-websocket";
 import { AlarmoEntity, AlarmoEvent } from "../types";
-import { ActionToState, AlarmoEvents, AlarmStates, ArmActions, EVENT, FORMAT_NUMBER } from "../const";
+import { ActionToState, AlarmoEvents, AlarmStates, ArmActions, AUTO_SUBMIT_MAX_INPUT, EVENT, FORMAT_NUMBER } from "../const";
 import { SubscribeMixin } from "../subscribe-mixin";
 import { HomeAssistant } from "../lib/types";
 import { localize } from "../localize/localize";
@@ -22,6 +22,9 @@ export interface CodeDialogParams {
   entity_id: string;
   action: ArmActions;
   armOptions: any;
+  // Code lengths to try after every digit (empty = no automatic submission).
+  auto_submit_lengths?: number[];
+  auto_submit_anywhere?: boolean;
   confirm?: (ev: AlarmoEvents) => void;
   cancel?: () => void;
 }
@@ -57,6 +60,9 @@ export class AlarmoCodeDialog
 
   _codeClearTimer = 0;
 
+  // Number of automatic attempts whose "invalid code" reply should be ignored.
+  _autoAttempts = 0;
+
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
     return [this.hass!.connection.subscribeMessage(ev => this._fetchData((ev as unknown) as AlarmoEvent), { type: EVENT })];
   }
@@ -75,6 +81,10 @@ export class AlarmoCodeDialog
         break;
       case AlarmoEvents.InvalidCodeProvided:
       case AlarmoEvents.NoCodeProvided:
+        if (this._autoAttempts > 0) {
+          this._autoAttempts--;
+          break;
+        }
         this._showCodeError();
         break;
       case AlarmoEvents.FailedToArm:
@@ -121,6 +131,7 @@ export class AlarmoCodeDialog
   public async showDialog(dialogParams: CodeDialogParams): Promise<void> {
     this._params = dialogParams;
     this._input = "";
+    this._autoAttempts = 0;
     this._narrow = matchMedia(
       "all and (max-width: 450px), all and (max-height: 500px)"
     ).matches;
@@ -174,7 +185,10 @@ export class AlarmoCodeDialog
   }
 
   private _submit(): void {
-    const code = this._input ?? "";
+    this._send(this._input ?? "");
+  }
+
+  private _send(code: string): void {
     this._clearCodeError();
 
     if (this._params!.action == ArmActions.Disarm) {
@@ -208,6 +222,20 @@ export class AlarmoCodeDialog
     this._setCodeClearTimer();
     this._input = this._input + val;
     this._showClearButton = true;
+    this._autoSubmit();
+  }
+
+  private _autoSubmit(): void {
+    const lengths = this._params!.auto_submit_lengths ?? [];
+    if (!lengths.length || this._params!.code_format !== FORMAT_NUMBER) return;
+    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...lengths));
+    // For each user code length N, try the input (or with auto_submit_anywhere its last N digits).
+    for (const length of lengths) {
+      if (this._input.length < length) break;
+      if (!this._params!.auto_submit_anywhere && this._input.length !== length) continue;
+      this._autoAttempts++;
+      this._send(this._input.slice(-length));
+    }
   }
 
   private _clear(): void {
@@ -277,6 +305,7 @@ export class AlarmoCodeDialog
         this._clearCodeError();
         this._input = (ev.target as HTMLInputElement).value;
         this._setCodeClearTimer();
+        this._autoSubmit();
       }}
             @focus=${this._clearCodeError}
           ></ha-input>
