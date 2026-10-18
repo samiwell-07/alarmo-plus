@@ -509,6 +509,10 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
 
   static get styles(): CSSResult {
     return css`
+      /* Options that do not apply to the current configuration are hidden instead of greyed out. */
+      ha-formfield:has(> ha-switch[disabled], > ha-slider[disabled]) {
+        display: none;
+      }
       div.config-row {
         font-size: 16px;
         display: flex;
