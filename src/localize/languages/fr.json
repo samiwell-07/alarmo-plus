@@ -14,6 +14,7 @@
     "use_code_dialog": "Affichez le clavier pour saisir le code sous forme de boîte de dialogue contextuelle.",
     "hide_keypad": "Masquer les boutons du clavier pour saisir le code.",
     "auto_submit": "Valider le code automatiquement : vérifié à chaque chiffre, le code peut se trouver n'importe où dans la saisie.",
+    "large_keypad": "Grand clavier : clavier pleine largeur avec grandes touches.",
     "available_actions": "Actions disponibles:",
     "action_dialog": {
       "title": "Personnaliser l'affichage de l'action '{action}'",

@@ -306,6 +306,14 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             ></ha-switch
           ></ha-formfield>
 
+          <ha-formfield .label=${localize('editor.large_keypad', this.hass.language)}>
+            <ha-switch
+              .checked=${this._config!.large_keypad}
+              @change=${(ev: Event) => this._updateConfig('large_keypad', (ev.target as HTMLInputElement).checked)}
+              ?disabled=${!stateObj || !hasKeypad || this._config?.use_code_dialog || this._config?.hide_keypad}
+            ></ha-switch
+          ></ha-formfield>
+
           <ha-formfield .label=${localize('editor.keep_keypad_visible', this.hass.language)}>
             <ha-switch
               .checked=${this._config!.keep_keypad_visible}

@@ -14,6 +14,7 @@
     "use_code_dialog": "Display the keypad for entering the code as a popup dialog.",
     "hide_keypad": "Hide the keypad buttons for entering the code.",
     "auto_submit": "Submit the code automatically: checked after every digit, the code may appear anywhere in what is typed.",
+    "large_keypad": "Large keypad: full-width keypad with tall keys.",
     "available_actions": "Available actions:",
     "action_dialog": {
       "title": "Customize display of action '{action}'",

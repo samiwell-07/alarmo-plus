@@ -88,6 +88,7 @@ export const defaultCardConfig: CardConfig = {
   use_code_dialog: false,
   hide_keypad: false,
   auto_submit: false,
+  large_keypad: false,
 };
 
 export const minButtonScale = 1;
