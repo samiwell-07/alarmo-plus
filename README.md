@@ -1,6 +1,10 @@
 # alarmo-card <!-- omit in TOC -->
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)  
 
+> **Alarmo Card Plus** — personal fork of [nielsfaber/alarmo-card](https://github.com/nielsfaber/alarmo-card) that can be installed next to the official card.
+> Use `type: custom:alarmo-card-plus`. Extra options: `large_keypad` (off = compact header), `auto_submit`, `auto_submit_anywhere`; the `button_scale_*`, `show_ready_indicator` and `hide_keypad` options are removed (see [Options](#options)).
+> Build with `npm run build:plus` (outputs `dist/alarmo-card-plus.js`); `npm run dev` serves a live-rebuilt `alarmo-card-dev` for testing.
+
 
 - [alarmo-card ](#alarmo-card-)
   - [Introduction](#introduction)
@@ -130,15 +134,11 @@ Configuration using UI mode:
 | `entity`                | string  | **Required** | Alarm_control_panel entity                                                                                                                                                      |                    |
 | `name`                  | string  | Optional     | Displayed name (next to icon)                                                                                                                                                   | (Take from entity) |
 | `keep_keypad_visible`   | boolean | Optional     | Keep the keypad always visible, also when no code input is required.<br>Only useful if numerical code is used.                                                                  | `false`            |
-| `button_scale_actions`  | number  | Optional     | Scaling factor to apply to the size of the action buttons (between 1.0 and 2.5)                                                                                                 | `1.0`              |
-| `button_scale_keypad`   | number  | Optional     | Scaling factor to apply to the size of the keypad buttons (between 1.0 and 2.5)                                                                                                 | `1.0`              |
-| `hide_keypad`           | boolean | Optional     | Hide the keypad buttons for entering the code from the card.                                                                                                                    | `false`            |
-| `use_code_dialog`       | boolean | Optional     | Display the keypad for entering the code as a popup dialog.<br>This option cannot be combined with the settings `hide_keypad`, `keep_keypad_visible` and `button_scale_keypad`. | `false`            |
+| `use_code_dialog`       | boolean | Optional     | Display the keypad for entering the code as a popup dialog.<br>This option cannot be combined with the settings `keep_keypad_visible`. | `false`            |
 | `auto_submit`           | boolean | Optional     | Submit a numeric code automatically as soon as the typed digits have the length of an Alarmo user code (lengths are read from Alarmo). A wrong code is ignored silently, so the code length is not revealed; use the clear button to start over.<br>On the card this disarms the alarm; in the code dialog (`use_code_dialog`) it also arms.<br>Note: every attempt is logged by Alarmo. | `false`            |
 | `auto_submit_anywhere`  | boolean | Optional     | With `auto_submit`, also try the last digits after every key, so the code is accepted wherever it appears in what is typed (e.g. code `3434` in `434523434…`). | `false`            |
 | `large_keypad`          | boolean | Optional     | Full-width keypad with tall keys, a clear button on both sides of `0` and a highlight on key press. When off, the card uses a compact header (small state icon on the left, icon-only action buttons). | `false`            |
 | `show_messages`         | boolean | Optional     | Show diagnostic messages in the card when alarm is triggered or cannot be armed.                                                                                                | `true`             |
-| `show_ready_indicator`  | boolean | Optional     | Adds ready/not ready indicators to the arm mode buttons.                                                                                                                        | `true`             |
 | `show_bypassed_sensors` | boolean | Optional     | Show a warning message when the alarm is armed with bypassed sensors.                                                                                                           | `true`             |
 | `states`                | object  | Optional     | Customize the display of states in the card.<br>See [state configuration](#state-configuration).                                                                                |                    |
 
