@@ -29,6 +29,7 @@
   "errors": {
     "invalid_pin": "Invalid",
     "auto_submit_too_fast": "Typed too fast to check every digit. Type the code again.",
+    "auto_submit_failed": "Could not send the code to Alarmo. Check the connection and type the code again.",
     "auto_submit_unavailable": "Auto-submit is unavailable: the code lengths could not be loaded.",
     "blocking_sensors": "Could not arm due to the following sensors",
     "triggered_sensors": "Alarm was triggered by the following sensors"

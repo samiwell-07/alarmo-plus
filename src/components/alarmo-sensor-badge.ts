@@ -57,8 +57,12 @@ class AlarmoSensorBadge extends LitElement {
 
   static get styles(): CSSResult {
     return css`
+      :host {
+        max-width: 100%;
+      }
       .badge-container {
         display: inline-block;
+        max-width: 100%;
         text-align: center;
         vertical-align: top;
         padding: var(--ha-label-badge-padding, 0 0 0 0);
@@ -119,7 +123,9 @@ class AlarmoSensorBadge extends LitElement {
         margin-top: 1em;
         font-size: var(--ha-label-badge-title-font-size, 0.9em);
         width: var(--ha-label-badge-title-width, 5em);
+        max-width: 100%;
         font-weight: var(--ha-label-badge-title-font-weight, 400);
+        white-space: var(--ha-label-badge-title-white-space, normal);
         overflow: hidden;
         text-overflow: ellipsis;
         line-height: normal;

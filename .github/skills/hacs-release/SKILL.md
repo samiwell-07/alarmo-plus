@@ -38,9 +38,16 @@ login stored in the git credential manager and never prints the token.
 
 ## If something fails
 
+The script creates the GitHub release as a **draft**, uploads `alarmo-card-plus.js` taken from the tagged commit (never
+the working-tree file), checks its size and SHA-256, and only then publishes it. HACS never sees a release without its
+file.
+
 - **Build fails:** nothing has been committed; fix the build and run again.
-- **Push fails:** the commit and tag exist locally. Fix the cause (e.g. `git pull --rebase`), then run the script again
-  with `-SkipCommit -Version <tag>`: it pushes `main` and the tag and creates the release.
+- **Push, upload or publish fails:** the commit and tag exist. Fix the cause (e.g. `git pull --rebase`, network), then
+  run the script again with `-SkipCommit -Version <tag>`. It reuses the tag, resumes the existing draft or incomplete
+  release, uploads the missing file and publishes. Local uncommitted changes are left alone.
 - **No token from the credential manager:** ask the user to sign in to GitHub with git (e.g. push once from VS Code), or
-  to create the release by hand on GitHub with `dist/alarmo-card-plus.js` attached.
-- **Release already exists for the tag:** the script stops; do not delete releases without asking the user.
+  to create the release by hand on GitHub with `dist/alarmo-card-plus.js` from the tagged commit attached.
+- **Complete release already exists for the tag:** the script stops; do not delete releases without asking the user.
+- **Unfinished or mismatched asset on an existing release:** the script stops without overwriting it; ask the user
+  before deleting that asset on GitHub.

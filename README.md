@@ -1,4 +1,4 @@
-# alarmo-card <!-- omit in TOC -->
+# Alarmo Plus <!-- omit in TOC -->
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)  
 
 > **Alarmo Card Plus** — personal fork of [nielsfaber/alarmo-card](https://github.com/nielsfaber/alarmo-card) that can be installed next to the official card.
@@ -6,7 +6,7 @@
 > Build with `npm run build:plus` (outputs `dist/alarmo-card-plus.js`); `npm run dev` serves a live-rebuilt `alarmo-card-dev` for testing.
 
 
-- [alarmo-card ](#alarmo-card-)
+- [Alarmo Plus](#alarmo-plus)
   - [Introduction](#introduction)
   - [Features](#features)
     - [Countdown timer](#countdown-timer)
@@ -130,9 +130,9 @@ Configuration using UI mode:
 | `entity`                | string  | **Required** | Alarm_control_panel entity                                                                                                                                                      |                    |
 | `name`                  | string  | Optional     | Displayed name (next to icon)                                                                                                                                                   | (Take from entity) |
 | `keep_keypad_visible`   | boolean | Optional     | Keep the keypad always visible, also when no code input is required.<br>Only useful if numerical code is used.                                                                  | `false`            |
-| `auto_submit`           | boolean | Optional     | Submit a numeric code automatically as soon as the typed digits have the length of an Alarmo user code (lengths are read from Alarmo and refreshed when Alarmo users change). Attempts are sent one at a time; if you type faster than Alarmo can check them, the input is cleared and you are asked to type the code again. Failed attempts are not shown on Plus cards; use the clear button to start over.<br>This only disarms the alarm.<br>See [Auto-submit limitations](#auto-submit-limitations). | `false`            |
+| `auto_submit`           | boolean | Optional     | Submit a numeric code automatically as soon as the typed digits have the length of an Alarmo user code (lengths are read from Alarmo and refreshed when Alarmo users change). Attempts are sent one at a time; if you type faster than Alarmo can check them, the input is cleared and you are asked to type the code again. Digits typed while the code lengths are still loading are checked once they are known, and pasted digits are checked as if typed one by one. If a code cannot be sent (e.g. connection lost), the card shows an error; type the code again. Turning `auto_submit` off, leaving the view or switching the entity cancels any attempt not sent yet. Failed attempts are not shown on Plus cards; use the clear button to start over.<br>This only disarms the alarm.<br>See [Auto-submit limitations](#auto-submit-limitations). | `false`            |
 | `auto_submit_anywhere`  | boolean | Optional     | With `auto_submit`, also try the last digits after every key, so the code is accepted wherever it appears in what is typed (e.g. code `3434` in `434523434…`). | `false`            |
-| `large_keypad`          | boolean | Optional     | Full-width keypad with tall keys, a clear button on both sides of `0` and a highlight on key press. When off, the card uses a compact header (small state icon on the left, icon-only action buttons). | `false`            |
+| `large_keypad`          | boolean | Optional     | Full-width keypad with tall keys, a clear button on both sides of `0` and a highlight on key press. When off, the card uses a compact header (state icon without ring, icon-only action buttons). | `false`            |
 | `show_messages`         | boolean | Optional     | Show diagnostic messages in the card when alarm is triggered or cannot be armed.                                                                                                | `true`             |
 | `states`                | object  | Optional     | Customize the display of states in the card.<br>See [state configuration](#state-configuration).                                                                                |                    |
 

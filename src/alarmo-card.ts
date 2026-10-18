@@ -15,7 +15,7 @@ import {
   CONFIG_UPDATED_EVENT,
 } from './const';
 import { CardConfig, AlarmoEvent, AlarmoEntity, AlarmoConfig } from './types';
-import { AutoSubmitQueue, autoSubmitCandidates, isAutoSubmitContext } from './auto-submit';
+import { AutoSubmitQueue, newInputCandidates, isAutoSubmitContext } from './auto-submit';
 
 import './alarmo-card-editor';
 import './components/alarmo-state-badge';
@@ -81,17 +81,26 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
   // Area ids of all Alarmo areas, needed to check user permissions for the master alarm.
   private _areaIds: string[] = [];
 
+  // Part of the input already checked by auto_submit. Digits typed while the code lengths are loading are checked
+  // once they are known; codes are checked prefix by prefix, so a paste behaves like typing the digits one by one.
+  private _processedInput = '';
+
   private _autoQueue = new AutoSubmitQueue(
-    (code, contextId) =>
+    (code, contextId, entity) =>
       this.hass!.callService('alarmo', 'disarm', {
-        entity_id: this._config!.entity,
+        entity_id: entity,
         code: code,
         context_id: contextId,
       }),
     () => {
       this._input = '';
+      this._processedInput = '';
       this._showCodeError(localize('errors.auto_submit_too_fast', this.hass!.language));
-    }
+    },
+    () => {
+      this._showCodeError(localize('errors.auto_submit_failed', this.hass!.language));
+    },
+    entity => this.isConnected && !!this._config?.auto_submit && this._config.entity === entity
   );
 
   public static async getConfigElement() {
@@ -142,13 +151,24 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
 
     if (previous && this.hass) {
       if (previous.entity !== this._config.entity) {
-        this._autoQueue.cancel();
+        this._clearCode();
         this.backendConnection = null;
         this.loadBackendConfig();
       } else if (previous.auto_submit !== this._config.auto_submit) {
+        if (!this._config.auto_submit) {
+          // Nothing queued may be sent once the feature is off, and turning it back on must not replay old input.
+          this._autoQueue.cancel();
+          this._processedInput = this._input;
+        }
         this._loadCodeLengths();
       }
     }
+  }
+
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    // Leaving the view stops pending automatic attempts and forgets the typed code.
+    this._clearCode();
   }
 
   public hassSubscribe(): Promise<UnsubscribeFunc>[] {
@@ -221,6 +241,8 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         // Only the lengths are kept.
         this._codeLengths = [...new Set(valid.map(u => u.code_length))].sort((a, b) => a - b);
         this._codeLengthsStatus = 'ready';
+        // Check digits typed while the lengths were loading.
+        if (this._input !== this._processedInput) this._autoSubmit();
       })
       .catch(() => {
         if (request !== this._codeLengthsRequest) return;
@@ -336,6 +358,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
             <alarmo-state-badge
               .hass=${this.hass}
               .entity=${this._config.entity}
+              ?compact=${!this._config.large_keypad}
               style="--alarm-state-color: ${computeStateColor(stateObj, this._config)}"
             >
             </alarmo-state-badge>
@@ -485,7 +508,10 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       setTimeout(() => button.classList.remove('lit'), KEY_HIGHLIGHT_MS);
     }
     this._clearCodeError();
-    if (val === 'clear') this._autoQueue.cancel();
+    if (val === 'clear') {
+      this._autoQueue.cancel();
+      this._processedInput = '';
+    }
     this._input = val === 'clear' ? '' : this._input + val;
     this._autoSubmit();
   }
@@ -494,17 +520,33 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     const stateObj = this.hass!.states[this._config!.entity] as AlarmoEntity;
     // Only disarming can be submitted automatically: when disarmed, the arm mode is not known yet.
     if (
+      !this.isConnected ||
       !this._config!.auto_submit ||
-      this._codeLengthsStatus !== 'ready' ||
       this._alarmoConfig?.code_format !== FORMAT_NUMBER ||
+      !stateObj ||
       stateObj.state === AlarmStates.Disarmed ||
       !codeRequired(stateObj)
-    )
+    ) {
+      // Digits typed while auto_submit does not apply are never checked later.
+      this._processedInput = this._input;
       return;
-    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...this._codeLengths));
+    }
+    // Code lengths not known yet (loading, or failed until Retry): the digits are checked once they are.
+    if (this._codeLengthsStatus !== 'ready') return;
     // For each user code length N, try the input (or with auto_submit_anywhere its last N digits, so the code
     // is found anywhere in what was typed). Attempts are sent one at a time.
-    this._autoQueue.add(autoSubmitCandidates(this._input, this._codeLengths, this._config!.auto_submit_anywhere));
+    const steps = newInputCandidates(
+      this._processedInput,
+      this._input,
+      this._codeLengths,
+      this._config!.auto_submit_anywhere
+    );
+    for (const codes of steps) {
+      // Saturated: the queue was reset and the input cleared.
+      if (!this._autoQueue.add(codes, this._config!.entity)) return;
+    }
+    this._input = this._input.slice(-Math.max(AUTO_SUBMIT_MAX_INPUT, ...this._codeLengths));
+    this._processedInput = this._input;
   }
 
   private _handleActionClick(ev: Event, action: ArmActions): void {
@@ -540,12 +582,14 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       inputField.classList.remove('error');
       (inputField as any).hint = '';
       this._input = '';
+      this._processedInput = '';
       this._cancelCodeClearTimer();
     }
   }
 
   private _clearCode() {
     this._input = '';
+    this._processedInput = '';
     this._autoQueue.cancel();
     this._clearCodeError();
     this._cancelCodeClearTimer();
@@ -602,16 +646,25 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       }
       ha-card.compact .header {
         justify-content: flex-start;
-        padding: 12px 0px;
-        gap: 12px;
+        padding: 14px 0px 10px;
+        gap: 16px;
         margin: 0px 16px;
-      }
-      ha-card.compact .header .icon {
-        zoom: 0.6;
       }
       ha-card.compact .header .name {
         font-size: 16px;
         font-weight: 500;
+        line-height: 20px;
+      }
+      ha-card.compact .header .state {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--secondary-text-color);
+      }
+      ha-card.compact {
+        padding-bottom: 14px;
+      }
+      ha-card.compact .actions alarmo-actions-bar {
+        padding: 0px 14px;
       }
       .actions {
         margin: 0;
@@ -733,6 +786,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         flex-direction: column;
         border-bottom: 1px solid var(--border-color);
         flex: 1 1;
+        min-width: 0;
       }
       div.messagebox .description {
         display: flex;
@@ -770,11 +824,20 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         color: var(--primary-text-color);
       }
       div.messagebox .content .badge {
-        width: 140px;
-        margin: 5px 0px;
+        display: flex;
         justify-content: center;
         align-items: center;
-        --ha-label-badge-title-width: 140px;
+        max-width: 100%;
+        min-width: 0;
+        margin: 5px 8px;
+        /* Sensor names stay on one line; very long names are cut with an ellipsis. */
+        --ha-label-badge-title-width: auto;
+        --ha-label-badge-title-white-space: nowrap;
+      }
+      div.messagebox .content .badge alarmo-sensor-badge {
+        display: block;
+        max-width: 100%;
+        min-width: 0;
       }
       div.auto-submit-failed {
         display: flex;

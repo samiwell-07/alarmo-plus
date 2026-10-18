@@ -12,6 +12,9 @@ class AlarmoStateBadge extends LitElement {
   @property()
   entity!: string;
 
+  @property({ type: Boolean, reflect: true })
+  compact = false;
+
   duration: number = 0;
   datetime: Date | null = null;
   timer = 0;
@@ -120,12 +123,21 @@ class AlarmoStateBadge extends LitElement {
   }
 
   render() {
+    const stateObj = this.hass.states[this.entity];
+    const timerRunning = this.datetime && this.duration;
+
+    // Compact header: only the state icon (or the countdown), without the ring.
+    if (this.compact) {
+      return html`
+        <div class="compact ${stateObj.state.split('_').shift()} ${timerRunning ? 'timer' : ''}">
+          ${this._stateValue(stateObj.state)}
+        </div>
+      `;
+    }
+
     let c = 50;
     let r = 45;
     let arcLength = 2 * Math.PI * r;
-
-    const stateObj = this.hass.states[this.entity];
-    const timerRunning = this.datetime && this.duration;
 
     return html`
       <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -155,6 +167,26 @@ class AlarmoStateBadge extends LitElement {
         width: 60px;
         height: 60px;
         cursor: pointer;
+      }
+      :host([compact]) {
+        width: 24px;
+        height: 24px;
+      }
+      div.compact {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        color: var(--alarm-state-color);
+        font-size: 15px;
+        font-weight: 500;
+        transition: 0.3s linear color;
+        --mdc-icon-size: 24px;
+      }
+      div.compact.arming.timer,
+      div.compact.pending.timer {
+        animation: none;
       }
       svg {
         width: 100%;

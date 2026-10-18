@@ -243,8 +243,22 @@ export class AlarmoActionsBar extends LitElement {
       :host([compact]) div.content span {
         display: none;
       }
+      :host([compact]) {
+        padding: 0px;
+      }
+      :host([compact]) div.container {
+        padding: 0px;
+      }
+      :host([compact]) div.container::before {
+        border-radius: 12px;
+      }
+      :host([compact]) div.content,
       :host([compact]) div.content.has-text {
-        height: calc(var(--content-scale, 1) * 26px);
+        height: calc(var(--content-scale, 1) * 35px);
+        inline-size: 100%;
+      }
+      :host([compact]) div.content::before {
+        border-radius: 12px;
       }
     `
   }

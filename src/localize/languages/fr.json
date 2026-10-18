@@ -29,6 +29,7 @@
   "errors": {
     "invalid_pin": "Invalide",
     "auto_submit_too_fast": "Saisie trop rapide pour vérifier chaque chiffre. Retapez le code.",
+    "auto_submit_failed": "Impossible d'envoyer le code à Alarmo. Vérifiez la connexion et retapez le code.",
     "auto_submit_unavailable": "Validation automatique indisponible : les longueurs de code n'ont pas pu être chargées.",
     "blocking_sensors": "Impossible d'armer en raison du(es) capteur(s) suivant(s)",
     "triggered_sensors": "L'alarme a été déclenchée par le(s) capteur(s) suivant(s)"

@@ -78,9 +78,48 @@ $token = ($credential | Where-Object { $_ -like 'password=*' }) -replace '^passw
 if (-not $token) { throw 'No GitHub credentials found in the git credential manager.' }
 $headers = @{ Authorization = "Bearer $token"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
 
-$existing = $null
-try { $existing = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/tags/$Version" -Headers $headers } catch { }
-if ($existing) { throw "A GitHub release for $Version already exists: $($existing.html_url)" }
+function Get-ReleaseForTag {
+  # Drafts only appear in the release list. API errors (authentication, network) are not treated as "no release".
+  $page = 1
+  while ($true) {
+    $list = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=100&page=$page" -Headers $headers |
+        ForEach-Object { $_ })
+    $match = $list | Where-Object { $_.tag_name -eq $Version } | Select-Object -First 1
+    if ($match -or $list.Count -lt 100) { return $match }
+    $page++
+  }
+}
+
+function Get-ReleaseAsset($release) {
+  @($release.assets) | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
+}
+
+function Export-TaggedAsset {
+  # The uploaded file is the exact blob committed under the tag, never the working-tree file.
+  $blob = git rev-parse --verify --quiet "${Version}:$AssetPath"
+  if (-not $blob) { throw "$AssetPath is not committed in tag $Version." }
+  $file = Join-Path ([IO.Path]::GetTempPath()) "alarmo-release-$Version-$AssetName"
+  if ($IsWindows) { & $env:ComSpec /c "git cat-file blob $blob > `"$file`"" }
+  else { & sh -c "git cat-file blob $blob > '$file'" }
+  if ($LASTEXITCODE) { throw "Could not extract $AssetPath from tag $Version." }
+  if ((git hash-object --no-filters -- $file) -ne $blob) { throw "The extracted $AssetName does not match tag $Version." }
+  if (-not (Select-String -Path $file -SimpleMatch $Version -Quiet)) { throw "The tagged $AssetPath does not contain $Version." }
+  return $file
+}
+
+$existing = Get-ReleaseForTag
+$existingAsset = if ($existing) { Get-ReleaseAsset $existing } else { $null }
+if ($existing) {
+  if (-not $existing.draft -and $existingAsset -and $existingAsset.state -eq 'uploaded') {
+    throw "A complete GitHub release for $Version already exists: $($existing.html_url)"
+  }
+  if (-not $SkipCommit) {
+    throw "An incomplete GitHub release for $Version exists ($($existing.html_url)). Resume it with -SkipCommit -Version $Version."
+  }
+}
+
+# On the resume path the artifact comes from the existing tag: check it before anything is published.
+$assetFile = if ($SkipCommit) { Export-TaggedAsset } else { $null }
 
 $untracked = @(git ls-files --others --exclude-standard)
 # Accept "a,b" (pwsh -File passes a single string) and folders.
@@ -97,6 +136,15 @@ if ($DryRun) {
     if ($leftOut) { Write-Host "Untracked, NOT committed:`n  $($leftOut -join "`n  ")" }
   }
   Write-Host "Credentials:  found"
+  if ($existing) {
+    Write-Host "Release:      resume existing $(if ($existing.draft) { 'draft' } else { 'published' }) release, asset $(if ($existingAsset) { $existingAsset.state } else { 'missing' })"
+  } else {
+    Write-Host 'Release:      new draft, published after the asset is uploaded and verified'
+  }
+  if ($assetFile) {
+    Write-Host "Asset:        $AssetName from tag $Version ($((Get-Item $assetFile).Length) bytes)"
+    Remove-Item $assetFile
+  }
   Write-Host "Release notes:`n$notes"
   Write-Host '[dry run] nothing was changed.'
   return
@@ -118,17 +166,47 @@ if (-not $SkipCommit) {
 
   Invoke-Git commit --quiet -m $Message -m $Trailer
   Invoke-Git tag $Version
+  $assetFile = Export-TaggedAsset
 }
 
 Invoke-Git push --quiet origin main
 Invoke-Git push --quiet origin $Version
 
-$body = @{ tag_name = $Version; name = $Version; body = $notes } | ConvertTo-Json
-$release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$Repo/releases" -Headers $headers `
-  -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8'
-$uploadUrl = ($release.upload_url -replace '\{.*\}', '') + "?name=$AssetName"
-$asset = Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile $AssetPath -ContentType 'text/javascript'
-if ($asset.state -ne 'uploaded') { throw "Asset upload failed (state: $($asset.state))." }
+try {
+  # Draft first: the release only becomes visible to HACS once its asset is uploaded and verified.
+  $release = $existing
+  if (-not $release) {
+    $body = @{ tag_name = $Version; name = $Version; body = $notes; draft = $true } | ConvertTo-Json
+    $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$Repo/releases" -Headers $headers `
+      -Body ([Text.Encoding]::UTF8.GetBytes($body)) -ContentType 'application/json; charset=utf-8'
+  }
 
-Write-Host "Released $Version with $AssetName"
+  $asset = Get-ReleaseAsset $release
+  if ($asset -and $asset.state -ne 'uploaded') {
+    throw "Release $Version has an unfinished '$AssetName' upload (state: $($asset.state)). Delete that asset on GitHub, then run again with -SkipCommit -Version $Version."
+  }
+  if (-not $asset) {
+    $uploadUrl = ($release.upload_url -replace '\{.*\}', '') + "?name=$AssetName"
+    $asset = Invoke-RestMethod -Method Post -Uri $uploadUrl -Headers $headers -InFile $assetFile -ContentType 'text/javascript'
+  }
+
+  $size = (Get-Item $assetFile).Length
+  $digest = 'sha256:' + (Get-FileHash $assetFile -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($asset.state -ne 'uploaded') { throw "Asset upload failed (state: $($asset.state))." }
+  if ($asset.size -ne $size) { throw "The release asset ($($asset.size) bytes) differs from the tagged file ($size bytes)." }
+  if ($asset.digest -and $asset.digest -ne $digest) { throw "The release asset digest $($asset.digest) differs from the tagged file ($digest)." }
+
+  if ($release.draft) {
+    $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$Repo/releases/$($release.id)" -Headers $headers `
+      -Body (@{ draft = $false } | ConvertTo-Json) -ContentType 'application/json'
+  }
+} catch {
+  Write-Host "Release not finished: $($_.Exception.Message)"
+  Write-Host "The commit and tag are pushed. Fix the cause, then resume with: -SkipCommit -Version $Version"
+  throw
+} finally {
+  if ($assetFile -and (Test-Path $assetFile)) { Remove-Item $assetFile }
+}
+
+Write-Host "Released $Version with $AssetName ($digest)"
 Write-Host $release.html_url
