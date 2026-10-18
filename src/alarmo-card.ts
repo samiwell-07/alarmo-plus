@@ -39,6 +39,8 @@ import { computeDomain } from './lib/compute-domain';
 import { fireEvent } from './lib/fire-event';
 
 const BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'clear'];
+const LARGE_BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'clear'];
+const KEY_HIGHLIGHT_MS = 150;
 
 @customElement('alarmo-card')
 export class AlarmoCard extends SubscribeMixin(LitElement) {
@@ -102,7 +104,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     if (!this._config || !this.hass) return 9;
     const stateObj = this.hass.states[this._config.entity] as AlarmoEntity;
     if (!stateObj || this._alarmoConfig?.code_format !== FORMAT_NUMBER) return 4;
-    return (!codeRequired(stateObj) && !this._config.keep_keypad_visible || this._config.use_code_dialog) ? 4 : 9;
+    return (!codeRequired(stateObj) && !this._config.keep_keypad_visible || this._config.use_code_dialog) ? 4 : this._config.large_keypad ? 11 : 9;
   }
 
   public setConfig(config?: CardConfig & { button_scale?: any }): void {
@@ -250,7 +252,7 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
     }
 
     return html`
-      <ha-card>
+      <ha-card class="${this._config.large_keypad ? 'large-keypad' : ''}">
         ${stateObj.state === AlarmStates.Disarmed
         ? html`
               <ha-dropdown
@@ -329,8 +331,8 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
         this._config.hide_keypad
         ? html``
         : html`
-          <div id="keypad" class="keypad" style="max-width: ${this._config.button_scale_keypad * 300}px">
-            ${BUTTONS.map(value => {
+          <div id="keypad" class="keypad" style="max-width: ${this._config.large_keypad ? 'none' : `${this._config.button_scale_keypad * 300}px`}">
+            ${(this._config.large_keypad ? LARGE_BUTTONS : BUTTONS).map(value => {
           return value === ''
             ? html`
               <alarmo-button
@@ -460,6 +462,11 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
 
   private _handlePadClick(e: MouseEvent): void {
     const val = (e.currentTarget! as any).value;
+    if (this._config!.large_keypad) {
+      const button = e.currentTarget as HTMLElement;
+      button.classList.add('lit');
+      setTimeout(() => button.classList.remove('lit'), KEY_HIGHLIGHT_MS);
+    }
     this._clearCodeError();
     this._input = val === 'clear' ? '' : this._input + val;
   }
@@ -669,6 +676,22 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       }
       #keypad alarmo-button.placeholder {
         visibility: hidden;
+      }
+      ha-card.large-keypad #keypad {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-gap: 10px;
+        padding: 0 16px;
+      }
+      ha-card.large-keypad #keypad alarmo-button {
+        width: auto;
+        height: 80px;
+        --alarmo-button-font-size: 30px;
+        --alarmo-button-border-radius: 8px;
+      }
+      ha-card.large-keypad #keypad alarmo-button.lit {
+        --alarmo-button-background-color: var(--primary-color);
+        --alarmo-button-background-opacity: 1;
+        --alarmo-button-color: var(--text-primary-color);
       }
       @keyframes shake {
         0% {
