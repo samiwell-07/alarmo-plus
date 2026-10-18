@@ -227,6 +227,12 @@ export class AlarmoActionsBar extends LitElement {
       div.content ha-icon.error {
         color: var(--red-color);
       }
+      :host([compact]) div.content span {
+        display: none;
+      }
+      :host([compact]) div.content.has-text {
+        height: calc(var(--content-scale, 1) * 26px);
+      }
     `
   }
 }
