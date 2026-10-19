@@ -305,16 +305,13 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             ></ha-switch
           ></ha-formfield>
 
-          ${this._config!.auto_submit
-        ? html`
           <ha-formfield .label=${localize('editor.auto_submit_anywhere', this.hass.language)}>
             <ha-switch
-              .checked=${this._config!.auto_submit_anywhere}
+              .checked=${!!this._config!.auto_submit && !!this._config!.auto_submit_anywhere}
               @change=${(ev: Event) => this._updateConfig('auto_submit_anywhere', (ev.target as HTMLInputElement).checked)}
+              ?disabled=${!stateObj || !hasKeypad}
             ></ha-switch
           ></ha-formfield>
-        `
-        : ''}
 
           <ha-formfield></ha-formfield>
         </div>
@@ -412,6 +409,9 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
   private _updateConfig(property: string, value: any) {
     if (!this.hass) return;
     this._config = { ...this._config, [property]: value };
+    // "Accept the code anywhere" only works with auto_submit, so the two switches stay consistent.
+    if (property == 'auto_submit_anywhere' && value) this._config = { ...this._config, auto_submit: true };
+    if (property == 'auto_submit' && !value) this._config = { ...this._config, auto_submit_anywhere: false };
     if (property == 'entity') {
       const stateObj = this._config!.entity ? (this.hass.states[this._config!.entity] as AlarmoEntity) : undefined;
       if (!stateObj || stateObj.attributes.code_arm_required == stateObj.attributes.code_disarm_required)

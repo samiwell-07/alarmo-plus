@@ -37,7 +37,7 @@ import { HomeAssistant } from './lib/types';
 import { computeDomain } from './lib/compute-domain';
 
 const BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'clear'];
-const LARGE_BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'clear'];
+const LARGE_BUTTONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'backspace'];
 const KEY_HIGHLIGHT_MS = 150;
 
 @customElement('alarmo-card')
@@ -427,13 +427,16 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
               <alarmo-button
                 .value="${value}"
                 @click=${this._handlePadClick}
-                ?disabled=${!codeRequired(stateObj) || value === 'clear' && !this._input.length}
-                class="${value !== 'clear' ? 'numberKey' : 'clear'}"
+                ?disabled=${!codeRequired(stateObj) || (value === 'clear' || value === 'backspace') && !this._input.length}
+                class="${value === 'clear' || value === 'backspace' ? 'clear' : 'numberKey'}"
                 style="--content-scale: ${this._config!.button_scale_keypad}"
                 ?scaled=${this._config!.button_scale_keypad != 1}
               >
-                ${value === 'clear'
-                ? html`<ha-icon icon="mdi:close" style="--mdc-icon-size: calc(${this._config!.button_scale_keypad} * 24px)"></ha-icon>`
+                ${value === 'clear' || value === 'backspace'
+                ? html`<ha-icon
+                    icon=${value === 'backspace' ? 'mdi:backspace-outline' : 'mdi:close'}
+                    style="--mdc-icon-size: calc(${this._config!.button_scale_keypad} * 24px)"
+                  ></ha-icon>`
                 : html` <span>${value}</span>`}
               </alarmo-button>
             `;
@@ -512,7 +515,8 @@ export class AlarmoCard extends SubscribeMixin(LitElement) {
       this._autoQueue.cancel();
       this._processedInput = '';
     }
-    this._input = val === 'clear' ? '' : this._input + val;
+    // Backspace removes the last digit; the shorter input is never re-checked (see newInputCandidates).
+    this._input = val === 'clear' ? '' : val === 'backspace' ? this._input.slice(0, -1) : this._input + val;
     this._autoSubmit();
   }
 
