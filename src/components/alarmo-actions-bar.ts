@@ -58,7 +58,10 @@ export class AlarmoActionsBar extends LitElement {
       }
     }
 
+    // When not disarmed, only Disarm and the active arm mode are shown.
+    const isDisarmed = stateObj.state == AlarmStates.Disarmed;
     const options = [ArmActions.Disarm, ...calcSupportedActions(stateObj)]
+      .filter(e => isDisarmed || e == ArmActions.Disarm || ActionToState[e] == selectedOption)
       .filter(calcButtonVisible);
     const hasTextLabel = options.map(e => calcStateConfig(ActionToState[e], this.config!)).some(e => !isDefined(e.button_label) || e.button_label.length);
 

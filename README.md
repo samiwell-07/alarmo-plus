@@ -2,7 +2,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)  
 
 > **Alarmo Card Plus** — personal fork of [nielsfaber/alarmo-card](https://github.com/nielsfaber/alarmo-card) that can be installed next to the official card.
-> Use `type: custom:alarmo-card-plus`. Extra options: `large_keypad` (off = compact header), `auto_submit`, `auto_submit_anywhere`; the `button_scale_*`, `show_ready_indicator`, `hide_keypad`, `use_code_dialog` and `show_bypassed_sensors` options, the arming options menu and the "Bypass open sensors" button are removed (see [Options](#options)).
+> Use `type: custom:alarmo-card-plus`. Extra options: `large_keypad` (off = compact header), `auto_submit`, `auto_submit_anywhere`; the `button_scale_*`, `show_ready_indicator`, `hide_keypad`, `use_code_dialog` and `show_bypassed_sensors` options, the arming options menu and the "Bypass open sensors" button are removed (see [Options](#options)). When the alarm is not disarmed, only the Disarm button and the active arm mode are shown.
 > Build with `npm run build:plus` (outputs `dist/alarmo-card-plus.js`); `npm run dev` serves a live-rebuilt `alarmo-card-dev` for testing.
 
 

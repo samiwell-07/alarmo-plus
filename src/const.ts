@@ -1,11 +1,11 @@
 import { CardConfig } from './types';
 
-export const CARD_VERSION = 'v1.6.9-plus.6';
+export const CARD_VERSION = 'v1.6.9-plus.7';
 
 export const FORMAT_NUMBER = 'number';
 
 // With auto_submit, only the most recent digits are kept.
-export const AUTO_SUBMIT_MAX_INPUT = 20;
+export const AUTO_SUBMIT_MAX_INPUT = 9;
 
 export enum AlarmStates {
   Disarmed = 'disarmed',
