@@ -6,6 +6,8 @@ import { localize } from './localize/localize';
 import {
   maxButtonScale,
   minButtonScale,
+  minAutoSubmitRateLimit,
+  maxAutoSubmitRateLimit,
   ActionToState,
   AlarmStates,
   ArmActions,
@@ -350,6 +352,34 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             ></ha-switch
           ></ha-formfield>
 
+          <ha-formfield .label=${localize('editor.auto_submit', this.hass.language)}>
+            <ha-switch
+              .checked=${this._config!.auto_submit}
+              @change=${(ev: Event) => this._updateConfig('auto_submit', (ev.target as HTMLInputElement).checked)}
+              ?disabled=${!stateObj || !hasKeypad}
+            ></ha-switch
+          ></ha-formfield>
+
+          <ha-formfield .label=${localize('editor.auto_submit_anywhere', this.hass.language)}>
+            <ha-switch
+              .checked=${!!this._config!.auto_submit && !!this._config!.auto_submit_anywhere}
+              @change=${(ev: Event) =>
+        this._updateConfig('auto_submit_anywhere', (ev.target as HTMLInputElement).checked)}
+              ?disabled=${!stateObj || !hasKeypad || !this._config!.auto_submit}
+            ></ha-switch
+          ></ha-formfield>
+
+          <ha-input
+            type="number"
+            min="${minAutoSubmitRateLimit}"
+            max="${maxAutoSubmitRateLimit}"
+            step="1"
+            .label=${localize('editor.auto_submit_rate_limit', this.hass.language)}
+            .value=${String(this._config!.auto_submit_rate_limit ?? defaultCardConfig.auto_submit_rate_limit)}
+            ?disabled=${!stateObj || !hasKeypad || !this._config!.auto_submit}
+            @input=${this._rateLimitChanged}
+          ></ha-input>
+
           <ha-formfield></ha-formfield>
         </div>
       </div>
@@ -443,9 +473,20 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig('states', stateConfig);
   }
 
+  // Only valid values are saved, so an empty field or intermediate values while typing (e.g. "1" before "12") keep the
+  // last valid value.
+  private _rateLimitChanged(ev: Event) {
+    const raw = String((ev.target as HTMLInputElement).value).trim();
+    const value = Number(raw);
+    if (raw !== '' && Number.isInteger(value) && value >= minAutoSubmitRateLimit && value <= maxAutoSubmitRateLimit)
+      this._updateConfig('auto_submit_rate_limit', value);
+  }
+
   private _updateConfig(property: string, value: any) {
     if (!this.hass) return;
     this._config = { ...this._config, [property]: value };
+    // "Accept the code anywhere" only works with auto_submit.
+    if (property == 'auto_submit' && !value) this._config = { ...this._config, auto_submit_anywhere: false };
     if (property == 'entity') {
       const stateObj = this._config!.entity ? (this.hass.states[this._config!.entity] as AlarmoEntity) : undefined;
       if (!stateObj || stateObj.attributes.code_arm_required == stateObj.attributes.code_disarm_required)
