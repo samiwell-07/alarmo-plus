@@ -1,6 +1,6 @@
 import { CardConfig } from './types';
 
-export const CARD_VERSION = 'v1.6.9-plus.8';
+export const CARD_VERSION = 'v1.6.9-plus.9';
 
 export const FORMAT_NUMBER = 'number';
 
