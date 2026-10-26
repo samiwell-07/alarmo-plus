@@ -15,7 +15,7 @@
     "hide_keypad": "Hide the keypad buttons for entering the code.",
     "auto_submit": "Submit the code automatically as soon as it is complete (a wrong code is ignored silently).",
     "auto_submit_anywhere": "Also accept the code when it appears anywhere in what is typed.",
-    "auto_submit_rate_limit": "Maximum digits per minute with automatic submission",
+    "auto_submit_rate_limit": "Auto-submit, maximum digits per minute:",
     "available_actions": "Available actions:",
     "action_dialog": {
       "title": "Customize display of action '{action}'",

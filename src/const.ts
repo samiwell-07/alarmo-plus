@@ -89,7 +89,7 @@ export const defaultCardConfig: CardConfig = {
   hide_keypad: false,
   auto_submit: false,
   auto_submit_anywhere: false,
-  auto_submit_rate_limit: 40,
+  auto_submit_rate_limit: 30,
 };
 
 export const minButtonScale = 1;
