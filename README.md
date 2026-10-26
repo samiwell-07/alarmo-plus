@@ -1,6 +1,10 @@
 # alarmo-card <!-- omit in TOC -->
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)  
 
+> **Alarmo Card Plus** — fork of [nielsfaber/alarmo-card](https://github.com/nielsfaber/alarmo-card) that can be installed next to the official card.
+> Use `type: custom:alarmo-card-plus`. All options of the original card are kept; this fork only adds [auto-submit](#auto-submit) (`auto_submit`, `auto_submit_anywhere`, `auto_submit_rate_limit`).
+> Build with `npm run build:plus` (outputs `dist/alarmo-card-plus.js`); `npm run dev` serves a live-rebuilt `alarmo-card-dev` on `http://localhost:5000/alarmo-card-dev.js` for testing.
+
 
 - [alarmo-card ](#alarmo-card-)
   - [Introduction](#introduction)
@@ -77,20 +81,21 @@ With the `auto_submit` option, a numeric code does not need to be confirmed: it 
 HACS installation:
 
 Note: Ensure you have a www folder created as in config/www or the installation will succeed but fails silently
-1. Click the Orange + button bottom right and search for Alarmo Card
-2. Click on "Install" under the new card that just popped up.
+1. In HACS, open the menu (⋮) and choose "Custom repositories".
+2. Add `https://github.com/samiwell-07/alarmo-plus` with type "Dashboard".
+3. Search for "Alarmo Card Plus" and click "Download".
 
 Note: Ensure to install [`https://github.com/nielsfaber/alarmo`](https://github.com/nielsfaber/alarmo) and add the integration in order for the card to work properly. 
 
 Manual installation
 
-1. Download the latest release of `alarmo-card.js` [here](https://github.com/nielsfaber/alarmo-card/releases) and place it into `www/alarmo-card`.
+1. Download `alarmo-card-plus.js` from the latest release [here](https://github.com/samiwell-07/alarmo-plus/releases) and place it into `www/alarmo-card-plus`.
 
-2. Use the GUI; Configuration -> Lovelace Dashboards -> Resources Tab to add `/local/alarmo-card/alarmo-card.js?v=0`, or add a reference to the card in the resources section of `configuration.yaml`:
+2. Use the GUI; Configuration -> Lovelace Dashboards -> Resources Tab to add `/local/alarmo-card-plus/alarmo-card-plus.js?v=0`, or add a reference to the card in the resources section of `configuration.yaml`:
 
 ```yaml
 resources:
-  - url: /local/alarmo-card/alarmo-card.js?v=0
+  - url: /local/alarmo-card-plus/alarmo-card-plus.js?v=0
     type: module
 ```
 </details>
@@ -105,7 +110,7 @@ HACS should auto-remind you in the HACS tab when an update is available.
 
 Updating manually:
 
-Use `git pull` for manual installation updates.
+Download the new `alarmo-card-plus.js` from the [releases](https://github.com/samiwell-07/alarmo-plus/releases) and replace the old file.
 
 Since most browsers will cache the Lovelace card code, you can force a refresh of  the browser by editing the entry in the `resources:` section in  `ui-lovelace.yaml`, by updating the version to `?v=(n+1)` (where `n` the current value).
 
@@ -122,7 +127,7 @@ All settings regarding delay times, arming modes, code settings are automaticall
 
 Example YAML configuration:
 ```yaml
-type: 'custom:alarmo-card'
+type: 'custom:alarmo-card-plus'
 entity: alarm_control_panel.alarmo
 ```
 
@@ -130,12 +135,12 @@ Configuration using UI mode:
 1. Go to the Lovelace page where you want to add the card
 2. Click "Edit Dashboard" on the right (under the button with the 3 dots)
 * Click the "Add card" button on the bottom
-* Choose "Custom: Alarmo Card" and pick the correct entity.
+* Choose "Custom: Alarmo Card Plus" and pick the correct entity.
 
 ## Options
 | Name                    | Type    | Requirement  | Description                                                                                                                                                                     | Default            |
 | ----------------------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `type`                  | string  | **Required** | `custom:alarmo-card`                                                                                                                                                            |                    |
+| `type`                  | string  | **Required** | `custom:alarmo-card-plus`                                                                                                                                                       |                    |
 | `entity`                | string  | **Required** | Alarm_control_panel entity                                                                                                                                                      |                    |
 | `name`                  | string  | Optional     | Displayed name (next to icon)                                                                                                                                                   | (Take from entity) |
 | `keep_keypad_visible`   | boolean | Optional     | Keep the keypad always visible, also when no code input is required.<br>Only useful if numerical code is used.                                                                  | `false`            |
@@ -170,7 +175,7 @@ Note that the alarm entity may not support all `armed_xxx` states. States which 
 The example below hides the `armed_home` button (although the alarm supports it), and renames the `armed_away` / `disarmed` options.
 
 ```yaml
-type: custom:alarmo-card
+type: custom:alarmo-card-plus
 entity: alarm_control_panel.alarmo
 states:
   armed_away:

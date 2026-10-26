@@ -8,7 +8,9 @@
     "build": "npm run lint && npm run rollup",
     "rollup": "rollup -c rollup.config.mjs",
     "lint": "eslint --fix src/**/*.ts",
-    "start": "rollup -c --watch"
+    "start": "rollup -c --watch",
+    "build:plus": "rollup -c rollup.config.plus.mjs",
+    "dev": "node scripts/dev.mjs"
   },
   "repository": {
     "type": "git",
