@@ -369,16 +369,19 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
             ></ha-switch
           ></ha-formfield>
 
-          <ha-input
-            type="number"
-            min="${minAutoSubmitRateLimit}"
-            max="${maxAutoSubmitRateLimit}"
-            step="1"
-            .label=${localize('editor.auto_submit_rate_limit', this.hass.language)}
-            .value=${String(this._config!.auto_submit_rate_limit ?? defaultCardConfig.auto_submit_rate_limit)}
-            ?disabled=${!stateObj || !hasKeypad || !this._config!.auto_submit}
-            @input=${this._rateLimitChanged}
-          ></ha-input>
+          <ha-formfield
+            .label=${`${localize('editor.auto_submit_rate_limit', this.hass.language)} ${this._config!.auto_submit_rate_limit ?? defaultCardConfig.auto_submit_rate_limit}`}
+          >
+            <ha-slider
+              .value=${this._config!.auto_submit_rate_limit ?? defaultCardConfig.auto_submit_rate_limit}
+              @change=${this._rateLimitChanged}
+              min="${minAutoSubmitRateLimit}"
+              max="${maxAutoSubmitRateLimit}"
+              step="5"
+              labeled
+              ?disabled=${!stateObj || !hasKeypad || !this._config!.auto_submit}
+            ></ha-slider>
+          </ha-formfield>
 
           <ha-formfield></ha-formfield>
         </div>
@@ -473,12 +476,9 @@ export class AlarmoCardEditor extends LitElement implements LovelaceCardEditor {
     this._updateConfig('states', stateConfig);
   }
 
-  // Only valid values are saved, so an empty field or intermediate values while typing (e.g. "1" before "12") keep the
-  // last valid value.
   private _rateLimitChanged(ev: Event) {
-    const raw = String((ev.target as HTMLInputElement).value).trim();
-    const value = Number(raw);
-    if (raw !== '' && Number.isInteger(value) && value >= minAutoSubmitRateLimit && value <= maxAutoSubmitRateLimit)
+    const value = Math.round(Number((ev.target as HTMLInputElement).value));
+    if (Number.isInteger(value) && value >= minAutoSubmitRateLimit && value <= maxAutoSubmitRateLimit)
       this._updateConfig('auto_submit_rate_limit', value);
   }
 
